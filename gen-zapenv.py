@@ -1,31 +1,36 @@
+"""Validate input options, generate configs for ZAP, and run docker container.
+
+IN:
+    * CLI options with templates and output locations.
+    * STDIN: Endpoints, Headers, API spec. in JSON format.
+OUT:
+    * STDOUT: An acknowledgement on job started, in JSON format.
+
+Docker container is spawned in detached mode.
+Its result is to be placed under requested output location.
+"""
+
+
 import argparse
+import docker
 import jinja2
 import json
 import jsonschema
+import requests
+import shutil
 import sys
+import uuid
 from pathlib import Path
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-o', '--out-dir', default='.')
-parser.add_argument('-t', '--templates-dir', default='./templates-zap')
-args = parser.parse_args()
+DOCKER_IMAGE = 'zap-plus'
 
-cfg_sch = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
+CFG_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
     "endpoints": {"type": "array",
         "items": {"type": "string"}},
-    # "header": {"type": "object", "properties": {
-    #     "name": {"type": "string"},
-    #     "value": {"type": "string"}}},
     "headers": {"type": "array",
         "items": {"type": "array", "minItems": 2, "maxItems": 2,
             "prefixItems": [{"type": "string"}, {"type": "string"}]}},
-    # "oas": {"oneOf": [
-    #     {"type": "object", "properties":
-    #         {"file": {"type": "string"}}},
-    #     {"type": "object", "properties":
-    #         {"url": {"type": "string"}}}
-    # ]}
     "oas": {"type": "object",
         "properties": {
             "file": {"type": "string"},
@@ -36,23 +41,42 @@ cfg_sch = {"type": "object", "required": ["endpoints"], "additionalProperties": 
 }}
 
 
+## Parse CLI options
+parser = argparse.ArgumentParser()
+parser.add_argument('-o', '--out-dir', default='.')
+parser.add_argument('-t', '--templates-dir', default='./templates-zap')
+parser.add_argument('--do-not-run', action='store_true', help='Do not run Docker container')
+args = parser.parse_args()
+
+## Parse STDIN data
 try:
     cfg = json.load(sys.stdin)
-    jsonschema.validate(cfg, schema=cfg_sch)
+    jsonschema.validate(cfg, schema=CFG_SCH)
 except Exception as e:
     print(type(e).__name__, str(e))
     sys.exit(1)
 
+## Copy or download API spec. to the working dir,
+## and adjust corresponding config section.
+if 'oas' in cfg:
+    if cfg['oas'].get('file'):
+        shutil.copy(Path(cfg['oas']['file']), Path(args.out_dir))
+        cfg['oas'] = {'file': '/zap/wrk/' + Path(cfg['oas']['file']).name}
+    elif cfg['oas'].get('url'):
+        with open(Path(args.out_dir, 'oas-downloaded.txt'), 'wb') as fo:
+            fo.write(requests.get(cfg['oas']['url']).content)
+        cfg['oas'] = {'file': '/zap/wrk/oas-downloaded.txt'}
+
+## Feed Jinja templates with the obtained config
 jenv = jinja2.Environment(
     loader=jinja2.FileSystemLoader(args.templates_dir),
-    trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
-
+    trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
+)
 jenv.globals = cfg
-
 for template_file in [
-        'zap-af.yaml.j2',      # urls
+        'zap-af.yaml.j2',      # URLs and API spec. ref. to go there
         'zap-options.cfg.j2',  # (Not parametrized yet)
-        'hsendr.py.j2',        # headers
+        'hsendr.py.j2',        # Headers to go there
         ]:
     try:
         if template_rendered := jenv.get_template(template_file).render():
@@ -61,3 +85,32 @@ for template_file in [
     except Exception as e:
         print(type(e).__name__, str(e))
         sys.exit(1)
+
+## Container's processes will write to this subdirectory
+Path(args.out_dir, 'out').mkdir(parents=False, exist_ok=True)
+
+if args.do_not_run:
+    sys.exit(0)
+
+dclient = docker.from_env()
+try:
+    dcontainer = dclient.containers.run(
+        image=DOCKER_IMAGE,
+        volumes={Path(args.out_dir).resolve(): {'bind': '/zap/wrk', 'mode': 'rw'}},
+        command='./zap.sh -cmd -autorun /zap/wrk/zap-af.yaml -configfile /zap/wrk/zap-options.cfg',
+        auto_remove=True,
+        remove=True,
+        detach=True
+    )
+except Exception as e:
+    # (e.g. docker.errors.ImageNotFound)
+    print(type(e).__name__, str(e))
+    sys.exit(1)
+
+print(json.dumps(
+    {
+        'job_id': str(uuid.uuid1()),
+        'dcontainer': str(dcontainer),
+        'outpath': Path(args.out_dir, 'out').resolve().as_posix(),
+    }
+, indent=4))
