@@ -1,0 +1,12 @@
+hdr = dict({
+{% for field, value in headers %}
+    "{{ field }}": "{{ value }}",
+{% endfor %}
+})
+
+def sendingRequest(msg, initiator, helper): 
+    for (k, v) in hdr.items():
+      msg.getRequestHeader().setHeader(k, v);
+
+def responseReceived(msg, initiator, helper): 
+    pass;    
