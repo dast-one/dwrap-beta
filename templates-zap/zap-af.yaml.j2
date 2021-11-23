@@ -128,19 +128,17 @@ jobs:
   - type: outputSummary
     name: outputSummary
     parameters:
-      summaryFile: /zap/wrk/out/zap_out.json
+      summaryFile: /zap/wrk/out/{{ job_id }}--zap_out.json
       format: Long # NONE Long
 
   - type: report
     name: report
     parameters:
       displayReport: false
-      # template: traditional-html
       template: traditional-json
       theme: null
       reportDir: /zap/wrk/out
-      # reportFile: null
-      reportFile: report.json
+      reportFile: {{ job_id }}--report.json
 
   - type: report
     name: report
@@ -149,7 +147,6 @@ jobs:
       template: traditional-html
       theme: null
       reportDir: /zap/wrk/out
-      # reportFile: null
-      reportFile: klmn
-      reportTitle: klmnTitle
-      reportDescription: klmnDescription
+      reportFile: {{ job_id }}
+      reportTitle: "Report on job ID {{ job_id }}"
+      reportDescription: "Report on job ID {{ job_id }}"

@@ -40,6 +40,8 @@ CFG_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": 
             {"required": ["url"]}]}
 }}
 
+JOB_ID = str(uuid.uuid1())
+
 
 ## Parse CLI options
 parser = argparse.ArgumentParser()
@@ -67,6 +69,8 @@ if 'oas' in cfg:
             fo.write(requests.get(cfg['oas']['url']).content)
         cfg['oas'] = {'file': '/zap/wrk/oas-downloaded.txt'}
 
+cfg['job_id'] = JOB_ID
+
 ## Feed Jinja templates with the obtained config
 jenv = jinja2.Environment(
     loader=jinja2.FileSystemLoader(args.templates_dir),
@@ -87,7 +91,7 @@ for template_file in [
         sys.exit(1)
 
 ## Container's processes will write to this subdirectory
-Path(args.out_dir, 'out').mkdir(parents=False, exist_ok=True)
+Path(args.out_dir, 'out').mkdir(parents=False, exist_ok=True) # TODO: mode 777?
 
 if args.do_not_run:
     sys.exit(0)
@@ -107,10 +111,27 @@ except Exception as e:
     print(type(e).__name__, str(e))
     sys.exit(1)
 
+## Report on Docker container start
 print(json.dumps(
     {
-        'job_id': str(uuid.uuid1()),
-        'dcontainer': str(dcontainer),
+        'job_id': JOB_ID,
+        str(dcontainer): None,
+        'outpath': Path(args.out_dir, 'out').resolve().as_posix(),
+    }
+, indent=4))
+
+## TODO: For Logging/Debug facility
+dcontainer_logstream = dcontainer.logs(stream=True, timestamps=True)
+with open(Path(args.out_dir, 'out', JOB_ID + '.log'), 'wb') as fo:
+    fo.writelines(dcontainer_logstream)
+
+dcontainer_exitstatus = dcontainer.wait()
+
+## Report on Docker container finish
+print(json.dumps(
+    {
+        'job_id': JOB_ID,
+        str(dcontainer): dcontainer_exitstatus,
         'outpath': Path(args.out_dir, 'out').resolve().as_posix(),
     }
 , indent=4))
