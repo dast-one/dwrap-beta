@@ -115,7 +115,7 @@ except Exception as e:
 ## Report on Docker container start
 print(json.dumps(
     {
-        'job_id': JOB_ID,
+        'job_id': args.job_id,
         str(dcontainer): None,
         'outpath': Path(args.out_dir, 'out').resolve().as_posix(),
     }
@@ -123,7 +123,7 @@ print(json.dumps(
 
 ## TODO: For Logging/Debug facility
 dcontainer_logstream = dcontainer.logs(stream=True, timestamps=True)
-with open(Path(args.out_dir, 'out', JOB_ID + '.log'), 'wb') as fo:
+with open(Path(args.out_dir, 'out', args.job_id + '.log'), 'wb') as fo:
     fo.writelines(dcontainer_logstream)
 
 dcontainer_exitstatus = dcontainer.wait()
@@ -131,7 +131,7 @@ dcontainer_exitstatus = dcontainer.wait()
 ## Report on Docker container finish
 print(json.dumps(
     {
-        'job_id': JOB_ID,
+        'job_id': args.job_id,
         str(dcontainer): dcontainer_exitstatus,
         'outpath': Path(args.out_dir, 'out').resolve().as_posix(),
     }
