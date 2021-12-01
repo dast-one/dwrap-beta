@@ -106,6 +106,7 @@ jobs:
     parameters:
       maxDuration: 0
 
+{% if not disable_active_scan %}
   - type: activeScan
     name: activeScan
     parameters:
@@ -124,6 +125,7 @@ jobs:
       # scanHeadersAllRequests: false
       # scanNullJsonValues: false
       threadPerHost: 2
+{% endif %}
 
   - type: outputSummary
     name: outputSummary
