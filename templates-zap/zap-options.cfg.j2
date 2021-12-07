@@ -1,0 +1,8 @@
+{% for _ in ['_SINGLE_HARDCODED_HSENDER_FOR_NOW_', ] %}
+script.scripts({{ loop.index0 }}).name=hsendr.py
+script.scripts({{ loop.index0 }}).description=HTTP Sender for Auth.
+script.scripts({{ loop.index0 }}).engine=jython
+script.scripts({{ loop.index0 }}).type=httpsender
+script.scripts({{ loop.index0 }}).enabled=true
+script.scripts({{ loop.index0 }}).file=/zap/wrk/hsendr.py
+{% endfor %}

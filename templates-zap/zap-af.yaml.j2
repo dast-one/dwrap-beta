@@ -1,0 +1,154 @@
+--- # OWASP ZAP automation configuration file, for more details see https://www.zaproxy.org/docs/automate/automation-framework/
+env:  # The environment, mandatory
+  contexts:
+    - name: baseline
+      # A mandatory list of top level urls, everything under each url will be included
+      urls:
+        {% for ep_url in endpoints %}
+        - {{ ep_url }}
+        {% endfor %}
+      # includePaths:   # An optional list of regexes to include
+      excludePaths: []
+      # authentication:   # TBA: In time to cover all auth configs
+  # vars:       # List of 1 or more variables, can be used in urls and selected other parameters
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: false
+
+{# 
+# # DOES NOT WORK (YET?) - USE CONFIG OPTIONS INSTEAD
+# scripts:
+#   - name: "vuapi-au.py"
+#     enabled: true
+#     filePath: "/zap/wrk/vuapi-au.py"
+#     engine: "jython"
+#     type: "httpsender"
+#     description: "Au 4 vuapi."
+#}
+
+jobs:
+
+{% if oas is defined %}
+  - type: openapi
+    name: openapi
+    parameters:
+      {% if oas.file is defined %}
+      apiFile: {{ oas.file }}
+      {% endif %}
+      {% if oas.url is defined %}
+      apiUrl: {{ oas.url }}
+      {% endif %}
+      targetUrl: {{ endpoints[0] }}
+{% endif %}
+
+{# 
+  # - type: requestor
+  #   name: requestor
+  #   parameters:
+  #   requests:
+  #     - url:                          # URL of the request to be made
+  #       method:                       # A non-empty request method
+#}
+
+  - type: passiveScan-config
+    name: passiveScan-config
+    parameters:
+      enableTags: false
+      maxAlertsPerRule: 10
+  #     maxAlertsPerRule: 0
+  #     maxBodySizeInBytesToScan: 0
+  #     scanFuzzerMessages: false
+  #     scanOnlyInScope: false
+
+  - type: spider
+    name: spider
+    parameters:
+  #     acceptCookies: true
+  #     context:
+  #     handleODataParametersVisited: false
+  #     handleParameters: USE_ALL
+  #     maxChildren: 0
+  #     maxDepth: 5
+  #     maxDuration: 0
+  #     maxParseSizeBytes: 2621440
+  #     parseComments: true
+  #     parseGit: false
+  #     parseRobotsTxt: true
+  #     parseSVNEntries: false
+  #     parseSitemapXml: true
+  #     postForm: true
+  #     processForm: true
+  #     requestWaitTime: 200
+  #     sendRefererHeader: true
+  #     threadCount: 2
+      url: {{ endpoints[0] }}
+      userAgent: 'zonder'
+
+  # - type: spiderAjax
+  #   name: spiderAjax
+  #   parameters:
+  #     browserId: firefox-headless
+  #     clickDefaultElems: true
+  #     clickElemsOnce: true
+  #     context:
+  #     eventWait: 1000
+  #     maxCrawlDepth: 10
+  #     maxCrawlStates: 0
+  #     maxDuration: 60
+  #     numberOfBrowsers: 1
+  #     randomInputs: true
+  #     reloadWait: 1000
+  #     url:
+
+  - type: passiveScan-wait
+    name: passiveScan-wait
+    parameters:
+      maxDuration: 0
+
+{% if not disable_active_scan %}
+  - type: activeScan
+    name: activeScan
+    parameters:
+      addQueryParam: true
+      scanHeadersAllRequests: true
+      scanNullJsonValues: true
+      #
+      # addQueryParam: false
+      # context:
+      # defaultPolicy:
+      # delayInMs: 0
+      # handleAntiCSRFTokens: true
+      # injectPluginIdInHeader: false
+      # maxRuleDurationInMins: 0
+      # maxScanDurationInMins: 0
+      # scanHeadersAllRequests: false
+      # scanNullJsonValues: false
+      threadPerHost: 2
+{% endif %}
+
+  - type: outputSummary
+    name: outputSummary
+    parameters:
+      summaryFile: /zap/wrk/out/{{ job_id }}--zap_out.json
+      format: Long # NONE Long
+
+  - type: report
+    name: report
+    parameters:
+      displayReport: false
+      template: traditional-json
+      theme: null
+      reportDir: /zap/wrk/out
+      reportFile: {{ job_id }}--report.json
+
+  - type: report
+    name: report
+    parameters:
+      displayReport: false
+      template: traditional-html
+      theme: null
+      reportDir: /zap/wrk/out
+      reportFile: {{ job_id }}
+      reportTitle: "Report on job ID {{ job_id }}"
+      reportDescription: "Report on job ID {{ job_id }}"
