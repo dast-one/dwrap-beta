@@ -2,7 +2,7 @@
 
 IN:
     * CLI options with templates and output locations.
-    * STDIN: Endpoints, Headers, API spec. in JSON format.
+    * STDIN: A JSON with Endpoints, Headers, API spec.
 OUT:
     * STDOUT: An acknowledgement on job started, in JSON format.
 
