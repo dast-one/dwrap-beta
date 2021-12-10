@@ -12,7 +12,7 @@ OUT:
 
 
 import argparse
-import docker
+# import docker
 import jinja2
 import json
 import jsonschema
