@@ -75,7 +75,7 @@ else:
 
 ## Copy or download API spec. to the working dir,
 ## and adjust corresponding config section.
-if 'oas' in cfg:
+if isinstance(cfg.get('oas'), dict):
     if cfg['oas'].get('file'):
         try:
             shutil.copy(Path(cfg['oas']['file']), Path(args.out_dir))
