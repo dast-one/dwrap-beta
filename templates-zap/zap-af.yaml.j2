@@ -130,7 +130,8 @@ jobs:
   - type: outputSummary
     name: outputSummary
     parameters:
-      summaryFile: /zap/wrk/out/{{ job_id }}--zap_out.json
+      {# summaryFile: /zap/wrk/out/{{ job_id }}--zap_out.json #}
+      summaryFile: /zap/wrk/out/{{ zap_reportfile }}.zap_out.json
       format: Long # NONE Long
 
   - type: report
@@ -140,7 +141,7 @@ jobs:
       template: traditional-json
       theme: null
       reportDir: /zap/wrk/out
-      reportFile: {{ job_id }}--report.json
+      reportFile: {{ zap_reportfile }}
 
   - type: report
     name: report
@@ -149,6 +150,6 @@ jobs:
       template: traditional-html
       theme: null
       reportDir: /zap/wrk/out
-      reportFile: {{ job_id }}
+      reportFile: {{ zap_reportfile }}
       reportTitle: "Report on job ID {{ job_id }}"
       reportDescription: "Report on job ID {{ job_id }}"
