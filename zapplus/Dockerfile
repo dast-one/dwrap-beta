@@ -14,5 +14,6 @@ RUN pip3 install --no-cache-dir \
 # USER zap
 RUN cp -rv /home/zap/. /root
 
-RUN zap.sh -cmd -addonupdate
-RUN zap.sh -cmd -addoninstall jython
+RUN zap.sh -cmd -addonupdate && \
+    zap.sh -cmd -addoninstall jython && \
+    zap.sh -cmd -addoninstall sqliplugin

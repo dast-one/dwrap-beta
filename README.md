@@ -1,4 +1,23 @@
 
+## Docker-images Building Environment
+
+### Make-powered way, for _plus_-images
+
+```sh
+cd zapplus
+make full dump # i.e. with `--no-cache`
+
+cd kaplus
+make # express-build by default
+make dump
+```
+
+### Bash _(sic!)_ script for other tools
+
+```sh
+./pull-n-dump.sh goatandwolf
+./pull-n-dump.sh juiceshop
+```
 
 
 ## ZAP Config/Environment Generator
