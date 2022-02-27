@@ -1,5 +1,5 @@
 # Exclude all the stuff
 *
 # except required
-!zap-jockey.py
+!zap-jockey
 !templates-zap
