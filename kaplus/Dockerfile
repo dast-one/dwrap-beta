@@ -1,7 +1,8 @@
 FROM kalilinux/kali-rolling
 
 RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get install -y \
-    curl wget dnsutils vim mc htop iperf3 iftop \
+    procps vim mc htop iperf3 iftop \
+    curl wget dnsutils net-tools iproute2 tcpdump \
     git \
     npm \
     sqlmap \
