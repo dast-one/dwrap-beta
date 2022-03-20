@@ -8,15 +8,8 @@ RUN pip3 install --no-cache-dir \
     jsonschema \
     docker
 
-# Writing reports to mounted volumes as non-root
-# is not supported in asc.runner environment.
-# As soon as that's fixed,
-#   - uncomment switching to `zap` user,
-#   - and remove copying home-stuff below.
+USER zap
 
-# USER zap
-
-RUN cp -rv /home/zap/. /root; \
-    zap.sh -cmd -addonupdate && \
+RUN zap.sh -cmd -addonupdate && \
     zap.sh -cmd -addoninstall jython && \
     zap.sh -cmd -addoninstall sqliplugin
