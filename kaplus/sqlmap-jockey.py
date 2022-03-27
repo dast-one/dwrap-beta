@@ -12,7 +12,7 @@ from thirdparty.six.moves import input as _input
 from thirdparty.six.moves import urllib as _urllib
 # from sqlmapapi import *
 
-# sys.path.insert(1, pathlib.Path('~/prj/masc/src/runner-suppl/kaplus').expanduser().as_posix())
+# sys.path.insert(1, pathlib.Path('~/prj/masc/src/dyna-misc/kaplus').expanduser().as_posix())
 from openapi_sqlmap import oas_load, sqlmap_tasks
 
 
