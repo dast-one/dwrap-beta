@@ -1,2 +1,5 @@
 # Exclude all the stuff
 *
+# except required
+!openapi_sqlmap.py
+!sqlmap-jockey.py

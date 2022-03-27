@@ -25,20 +25,7 @@ case "$1" in
     ;;
 
     *)
-        echo "USAGE: $0 "'{ goatandwolf | juiceshop }'
+        echo "USAGE: $0 "'{ g|goatandwolf | j|juiceshop }'
     ;;
 
 esac
-
-# (
-#     # IMG="webgoat/goatandwolf"
-#     # FNAME="webgoat-goatandwolf"
-#     IMG="bkimminich/juice-shop"
-#     FNAME="juice-shop"
-#     docker pull "${IMG}"
-#     docker save "${IMG}" | xz -T0 > "${FNAME}.txz"
-#     openssl enc -aes-256-cbc -pbkdf2 -nosalt -pass pass:TYPOSCRAMBLE \
-#         -in "${FNAME}.txz" -out "${FNAME}.txz.ebin"
-#     sha256sum "${FNAME}.txz" "${FNAME}.txz.ebin" > "${FNAME}.sha256"
-#     rm "${FNAME}.txz"
-# )
