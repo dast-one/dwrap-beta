@@ -24,8 +24,12 @@ case "$1" in
         pull_n_dump "bkimminich/juice-shop" "juice-shop"
     ;;
 
+    c|chisel)
+        pull_n_dump "jpillora/chisel" "chisel"
+    ;;
+
     *)
-        echo "USAGE: $0 "'{ g|goatandwolf | j|juiceshop }'
+        echo "USAGE: $0 "'{ g|goatandwolf | j|juiceshop | c|chisel }'
     ;;
 
 esac
