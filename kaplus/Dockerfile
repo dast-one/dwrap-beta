@@ -1,6 +1,7 @@
 FROM kalilinux/kali-rolling
 
-RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get install -y \
+RUN echo 'deb http://mirrors.dotsrc.org/kali kali-rolling main contrib non-free' > /etc/apt/sources.list \
+&& apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get install -y \
     procps vim mc htop iperf3 iftop \
     curl wget dnsutils net-tools iproute2 tcpdump \
     python3-yaml \
