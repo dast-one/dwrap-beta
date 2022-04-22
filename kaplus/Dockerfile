@@ -2,7 +2,7 @@ FROM kalilinux/kali-rolling
 
 RUN echo 'deb http://mirrors.dotsrc.org/kali kali-rolling main contrib non-free' > /etc/apt/sources.list \
 && apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get install -y \
-    procps vim mc htop iperf3 iftop \
+    procps vim mc htop iperf3 iftop jq \
     curl wget dnsutils net-tools iproute2 tcpdump \
     python3-yaml \
     git \
@@ -22,5 +22,6 @@ RUN npm install --global yarn && \
     cd wappalyzer && yarn install && yarn run link && \
     cd .. # && rm -rf wappalyzer
 
+ENV PYTHONPATH=/usr/share/sqlmap
 COPY ./openapi_sqlmap.py ./sqlmap-jockey.py /usr/share/sqlmap/
 RUN ln -s '../share/sqlmap/sqlmap-jockey.py' /usr/bin/sqlmap-jockey

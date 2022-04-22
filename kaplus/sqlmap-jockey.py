@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 
+import argparse
 import pathlib
 import sys
 import threading
 
-sys.path.insert(1, pathlib.Path('/usr/share/sqlmap').expanduser().as_posix())
 from lib.utils.api import *
 from lib.utils.api import _client
 from thirdparty.six.moves import http_client as _http_client
 from thirdparty.six.moves import input as _input
 from thirdparty.six.moves import urllib as _urllib
-# from sqlmapapi import *
 
-# sys.path.insert(1, pathlib.Path('~/prj/masc/src/dyna-misc/kaplus').expanduser().as_posix())
 from openapi_sqlmap import oas_load, sqlmap_tasks
 
 
@@ -113,28 +111,40 @@ class SqlmapApiClient:
 
 def thread_worker(sqlmap_task):
     with pool_sema:
-        # logger.debug(sqlmap_task)
-        sm.new_scan_w(sqlmap_task)
+        logger.debug(sqlmap_task)
+        if not args.dry_run:
+            sm.new_scan_w(sqlmap_task)
 
 
-logger.setLevel(logging.DEBUG)
+ap = argparse.ArgumentParser()
+ap.add_argument('-u', '--url', required=True, help='Base URL')
+ap.add_argument('-s', '--oas', required=True, type=pathlib.Path, help='OpenAPI Spec file')
+ap.add_argument('-H', action='append', default=list(), help='Additional header, may be used multiple times')
+ap.add_argument('--dry_run', action='store_true', help="Do not actually run scan (useful for debugging)")
+ap.add_argument('--log_debug', action='store_true', help="setLevel logging.DEBUG")
+ap.add_argument('--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
+# ap.print_help()
+args = ap.parse_args()
 
-max_threads = 3
-pool_sema = threading.BoundedSemaphore(max_threads)
+if args.log_debug:
+    logger.setLevel(logging.DEBUG)
+
+pool_sema = threading.BoundedSemaphore(args.threads)
 
 sm = SqlmapApiClient()
-sm.list_tasks()
+if not args.dry_run:
+    sm.list_tasks()
 
-base_url = 'http://localhost:10013'
-
-for smt in sqlmap_tasks(oas_load('/hka/oas.yaml')):
-    u = '/'.join((base_url.rstrip('/'), smt['url'].lstrip('/')))
+for smt in sqlmap_tasks(oas_load(args.oas)):
+    u = '/'.join((args.url.rstrip('/'), smt['url'].lstrip('/')))
     t = threading.Thread(
         target=thread_worker,
         args=(
-            f"new -u {u} -X {smt['method']} -H 'content-type:application/json'"
+            f"new -u {u} -X {smt['method']}"
+            + ' -H "User-Agent:masc-fu-squma"'
+            + ''.join(f" -H '{hdr}'" for hdr in args.H) # ...maybe hdr.replace("'", r"\'") ?
             + (f" --data '{smt['data']}'" if smt.get('data') else '')
-            + ' --random-agent --level=5 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
+            + ' --random-agent --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
         )
     )
     t.start()
