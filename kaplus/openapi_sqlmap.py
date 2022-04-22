@@ -7,12 +7,18 @@ import re
 import yaml
 
 
+class CustomError(Exception):
+    pass
+
+
 path_param = re.compile(r'\{([^}]+?)\}')
 
 def _sample_for_schema(sd, oas):
     """Returns a sample for given schema dict, dereferencing with given oapispec."""
     if sd is None:
         return
+    if sd == dict():
+        return sd
 
     if ref := sd.get('$ref'):
         d = oas
@@ -67,13 +73,13 @@ def sqlmap_tasks(oas, additional_qryparams=[]):
                     smt['url'] += f'?{qry_params}'
                 # TODO: Support in-header params.
 
+                reqbody_content_item = oas['paths'][u][m].get('requestBody', {'content': {'application/json': {'schema': None}}})['content'].popitem()
                 if post_data := _sample_for_schema(
-                        oas['paths'][u][m].get('requestBody', {'content': {'application/json': {'schema': None}}})['content']['application/json']['schema'],
+                        reqbody_content_item[1]['schema'],
                         oas
                 ):
-                    smt['headers'].append('content-type:application/json')
+                    smt['headers'].append(f'content-type:{reqbody_content_item[0]}')
                     smt['data'] = json.dumps(post_data)
-                # TODO: HAX hardcoded app/js contntype
                 # TODO: Support in-header params.
 
             # TODO: Support other methods.
@@ -102,7 +108,10 @@ def _as_json(fp):
 
 def oas_load(file_path):
     fp = pathlib.Path(file_path).expanduser()
-    return _as_yaml(fp) or _as_json(fp)
+    if r := (_as_yaml(fp) or _as_json(fp)):
+        return r
+    else:
+        raise CustomError('oas_load() tried several formats and finally got None')
 
 
 if __name__ == '__main__':
