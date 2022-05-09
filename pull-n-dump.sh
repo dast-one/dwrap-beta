@@ -28,8 +28,12 @@ case "$1" in
         pull_n_dump "jpillora/chisel" "chisel"
     ;;
 
+    m|mongo)
+        pull_n_dump "mongo" "mongo"
+    ;;
+
     *)
-        echo "USAGE: $0 "'{ g|goatandwolf | j|juiceshop | c|chisel }'
+        echo "USAGE: $0 "'{ g|goatandwolf | j|juiceshop | c|chisel | m|mongo }'
     ;;
 
 esac
