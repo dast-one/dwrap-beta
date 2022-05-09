@@ -15,10 +15,11 @@ path_param = re.compile(r'\{([^}]+?)\}')
 
 def _sample_for_schema(sd, oas):
     """Returns a sample for given schema dict, dereferencing with given oapispec."""
-    if sd is None:
-        return
-    if sd == dict():
+    if sd is None or sd == dict() or sd == list():
         return sd
+
+    if 'oneOf' in sd:
+        return _sample_for_schema((sd['oneOf'] + [None,]).pop(), oas)
 
     if ref := sd.get('$ref'):
         d = oas
