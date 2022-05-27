@@ -1,4 +1,4 @@
 SOURCE_NAME := projectdiscovery/nuclei
-TARGET_NAME := nukem
+TARGET_NAME := dast.nukem
 
 include ../docker-recipes.mk
