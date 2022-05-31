@@ -26,7 +26,7 @@ express-build:
 .PHONY: build
 build:
 	@echo "[make]  ---- build ----"
-	docker build --no-cache -t ${DOCKER_IMAGE} .
+	docker build --pull --no-cache -t ${DOCKER_IMAGE} .
 ifeq ($(GIT_BRANCH), main)
 	docker tag ${DOCKER_IMAGE} ${D_IMG_LATEST}
 else
@@ -35,7 +35,7 @@ endif
 
 .PHONY: dump
 dump:
-	docker save ${D_IMG_LATEST} | xz -T0 > "${TARGET_NAME}.txz"
+	docker save ${D_IMG_LATEST} | xz -eT0 > "${TARGET_NAME}.txz"
 	openssl enc -aes-256-cbc -pbkdf2 -nosalt -pass 'pass:typoscramble'  \
 	  -in "${TARGET_NAME}.txz" -out "${TARGET_NAME}.txz.ebin"
 	sha256sum "${TARGET_NAME}.txz" "${TARGET_NAME}.txz.ebin" > "${TARGET_NAME}.sha256"
