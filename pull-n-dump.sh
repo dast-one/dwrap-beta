@@ -27,8 +27,13 @@ case "$1" in
         scrambledump "postman-to-openapi"
     ;;
 
-    goat)
+    webgoat)
         IMG="webgoat/goatandwolf"
+        docker pull "${IMG}" && scrambledump "${IMG}"
+    ;;
+
+    pygoat)
+        IMG="pygoat/pygoat"
         docker pull "${IMG}" && scrambledump "${IMG}"
     ;;
 
@@ -53,7 +58,7 @@ case "$1" in
     ;;
 
     *)
-        echo "USAGE: $0 "'{ goat | juice | chisel | mongo }'
+        echo "USAGE: $0 "'{ oapitools | webgoat | pygoat | juice | chisel | mongo }'
     ;;
 
 esac

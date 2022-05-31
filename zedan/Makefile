@@ -1,3 +1,3 @@
-TARGET_NAME := dast.nukem
+TARGET_NAME := dast.zedan
 
 include ../docker-recipes.mk
