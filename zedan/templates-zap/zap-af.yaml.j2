@@ -9,15 +9,9 @@ env:  # The environment, mandatory
         {% endfor %}
       # includePaths:   # An optional list of regexes to include
       excludePaths:
-        - ".*logout"
-        - ".*exit"
-        - ".*/static/.*"
-        - ".*\\.js"
-        - ".*\\.css"
-        - ".*\\.png"
-        - ".*\\.jpg"
-        - ".*\\.jpeg"
-        - ".*\\.svg"
+        {% for excludepattern in excludepaths %}
+        - {{ excludepattern }}
+        {% endfor %}
       # authentication:   # TBA: In time to cover all auth configs
   # vars:       # List of 1 or more variables, can be used in urls and selected other parameters
   parameters:
@@ -65,50 +59,50 @@ jobs:
     parameters:
       enableTags: false
       maxAlertsPerRule: 10
-  #     maxAlertsPerRule: 0
-  #     maxBodySizeInBytesToScan: 0
-  #     scanFuzzerMessages: false
-  #     scanOnlyInScope: false
+      # maxAlertsPerRule: 0
+      # maxBodySizeInBytesToScan: 0
+      # scanFuzzerMessages: false
+      # scanOnlyInScope: false
 
   - type: spider
     name: spider
     parameters:
-  #     acceptCookies: true
-  #     context:
-  #     handleODataParametersVisited: false
-  #     handleParameters: USE_ALL
-  #     maxChildren: 0
-      maxDepth: 2
-  #     maxDuration: 0
-  #     maxParseSizeBytes: 2621440
-  #     parseComments: true
-  #     parseGit: false
-  #     parseRobotsTxt: true
-  #     parseSVNEntries: false
-  #     parseSitemapXml: true
-  #     postForm: true
-  #     processForm: true
-  #     requestWaitTime: 200
-  #     sendRefererHeader: true
-  #     threadCount: 2
+      # acceptCookies: true
+      # context:
+      # handleODataParametersVisited: false
+      # handleParameters: USE_ALL
+      # maxChildren: 0
+      maxDepth: 3
+      # maxDuration: 0
+      # maxParseSizeBytes: 2621440
+      # parseComments: true
+      # parseGit: false
+      # parseRobotsTxt: true
+      # parseSVNEntries: false
+      # parseSitemapXml: true
+      # postForm: true
+      # processForm: true
+      # requestWaitTime: 200
+      # sendRefererHeader: true
+      # threadCount: 2
       url: {{ endpoints[0] }}
       userAgent: 'zonder'
 
   - type: spiderAjax
     name: spiderAjax
     parameters:
-  #     browserId: firefox-headless
-  #     clickDefaultElems: true
-  #     clickElemsOnce: true
-  #     context:
-      eventWait: 1000
-      maxCrawlDepth: 2
-  #     maxCrawlStates: 0
-  #     maxDuration: 60
+      # browserId: firefox-headless
+      # clickDefaultElems: true
+      # clickElemsOnce: true
+      # context:
+      eventWait: 2000
+      maxCrawlDepth: 3
+      # maxCrawlStates: 0
+      # maxDuration: 60
       numberOfBrowsers: 1
-  #     randomInputs: true
-      reloadWait: 1000
-  #     url:
+      # randomInputs: true
+      reloadWait: 2000
+      # url:
 
   - type: passiveScan-wait
     name: passiveScan-wait
@@ -121,10 +115,9 @@ jobs:
     parameters:
       addQueryParam: true
       scanHeadersAllRequests: true
-      #scanNullJsonValues: true # warns that is not resognized
-      policy: ""
-      defaultPolicy: ""
-      #
+      # scanNullJsonValues: true # warns that is not resognized
+      # policy: ""
+      # defaultPolicy: ""
       # addQueryParam: false
       # context:
       # defaultPolicy:
@@ -136,7 +129,7 @@ jobs:
       # scanHeadersAllRequests: false
       # scanNullJsonValues: false
       threadPerHost: 1
-    #policyDefinition:
+    # policyDefinition:
     #  rules:
     #    - id: 40012
     #    - id: 40018
@@ -160,13 +153,13 @@ jobs:
       reportDir: /zap/wrk/out
       reportFile: {{ zap_reportfile }}
 
-  - type: report
-    name: report
-    parameters:
-      displayReport: false
-      template: traditional-html
-      theme: null
-      reportDir: /zap/wrk/out
-      reportFile: {{ zap_reportfile }}
-      reportTitle: "Report on job ID {{ job_id }}"
-      reportDescription: "Report on job ID {{ job_id }}"
+  # - type: report
+  #   name: report
+  #   parameters:
+  #     displayReport: false
+  #     template: traditional-html
+  #     theme: null
+  #     reportDir: /zap/wrk/out
+  #     reportFile: {{ zap_reportfile }}
+  #     reportTitle: "Report on job ID {{ job_id }}"
+  #     reportDescription: "Report on job ID {{ job_id }}"

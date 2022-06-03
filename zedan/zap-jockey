@@ -39,7 +39,9 @@ SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProp
             "url": {"type": "string"}},
         "oneOf": [
             {"required": ["file"]},
-            {"required": ["url"]}]}]}
+            {"required": ["url"]}]}]},
+    "excludepaths": {"type": "array",
+        "items": {"type": "string"}}
 }}
 
 
@@ -93,6 +95,10 @@ cfg['job_id'] = args.job_id
 cfg['disable_active_scan'] = args.disable_active_scan
 
 cfg['zap_reportfile'] = args.zap_reportfile
+
+# A kind of extra safety-lock, when there are no excludes defined
+if not cfg.get('excludepaths'):
+    cfg['excludepaths'] = ['.*logout',]
 
 ## Feed Jinja templates with the obtained config
 jenv = jinja2.Environment(
