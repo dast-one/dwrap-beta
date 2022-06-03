@@ -8,13 +8,22 @@ env:  # The environment, mandatory
         - {{ ep_url }}
         {% endfor %}
       # includePaths:   # An optional list of regexes to include
-      excludePaths: []
+      excludePaths:
+        - ".*logout"
+        - ".*exit"
+        - ".*/static/.*"
+        - ".*\\.js"
+        - ".*\\.css"
+        - ".*\\.png"
+        - ".*\\.jpg"
+        - ".*\\.jpeg"
+        - ".*\\.svg"
       # authentication:   # TBA: In time to cover all auth configs
   # vars:       # List of 1 or more variables, can be used in urls and selected other parameters
   parameters:
     failOnError: true
     failOnWarning: false
-    progressToStdout: false
+    progressToStdout: true
 
 {# 
 # # DOES NOT WORK (YET?) - USE CONFIG OPTIONS INSTEAD
@@ -69,7 +78,7 @@ jobs:
   #     handleODataParametersVisited: false
   #     handleParameters: USE_ALL
   #     maxChildren: 0
-  #     maxDepth: 5
+      maxDepth: 2
   #     maxDuration: 0
   #     maxParseSizeBytes: 2621440
   #     parseComments: true
@@ -85,20 +94,20 @@ jobs:
       url: {{ endpoints[0] }}
       userAgent: 'zonder'
 
-  # - type: spiderAjax
-  #   name: spiderAjax
-  #   parameters:
+  - type: spiderAjax
+    name: spiderAjax
+    parameters:
   #     browserId: firefox-headless
   #     clickDefaultElems: true
   #     clickElemsOnce: true
   #     context:
-  #     eventWait: 1000
-  #     maxCrawlDepth: 10
+      eventWait: 1000
+      maxCrawlDepth: 2
   #     maxCrawlStates: 0
   #     maxDuration: 60
-  #     numberOfBrowsers: 1
+      numberOfBrowsers: 1
   #     randomInputs: true
-  #     reloadWait: 1000
+      reloadWait: 1000
   #     url:
 
   - type: passiveScan-wait
@@ -112,7 +121,9 @@ jobs:
     parameters:
       addQueryParam: true
       scanHeadersAllRequests: true
-      scanNullJsonValues: true
+      #scanNullJsonValues: true # warns that is not resognized
+      policy: ""
+      defaultPolicy: ""
       #
       # addQueryParam: false
       # context:
@@ -124,7 +135,13 @@ jobs:
       # maxScanDurationInMins: 0
       # scanHeadersAllRequests: false
       # scanNullJsonValues: false
-      threadPerHost: 2
+      threadPerHost: 1
+    #policyDefinition:
+    #  rules:
+    #    - id: 40012
+    #    - id: 40018
+    #    #- id: 40026
+    #    #  strength: Low
 {% endif %}
 
   - type: outputSummary
@@ -138,7 +155,7 @@ jobs:
     name: report
     parameters:
       displayReport: false
-      template: traditional-json
+      template: traditional-json-plus
       theme: null
       reportDir: /zap/wrk/out
       reportFile: {{ zap_reportfile }}
