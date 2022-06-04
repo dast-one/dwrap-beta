@@ -129,12 +129,14 @@ jobs:
       # scanHeadersAllRequests: false
       # scanNullJsonValues: false
       threadPerHost: 1
-    # policyDefinition:
-    #  rules:
-    #    - id: 40012
-    #    - id: 40018
-    #    #- id: 40026
-    #    #  strength: Low
+    {% if exclude_alerts %}
+    policyDefinition:
+      rules:
+      {% for alert_id in exclude_alerts %}
+      - id: {{ alert_id }}
+        threshold: Off
+      {% endfor %}
+    {% endif %}
 {% endif %}
 
   - type: outputSummary
