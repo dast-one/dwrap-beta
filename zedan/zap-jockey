@@ -77,19 +77,23 @@ else:
         print(type(e).__name__, str(e))
         sys.exit(1)
 
-## Copy or download API spec. to the working dir,
-## and adjust corresponding config section.
-if isinstance(cfg.get('oas'), dict):
-    if cfg['oas'].get('file'):
-        try:
-            shutil.copy(Path(cfg['oas']['file']), Path(args.out_dir))
-        except shutil.SameFileError as e:
-            pass
-        cfg['oas'] = {'file': '/zap/wrk/' + Path(cfg['oas']['file']).name}
-    elif cfg['oas'].get('url'):
-        with open(Path(args.out_dir, 'oas-downloaded.txt'), 'wb') as fo:
-            fo.write(requests.get(cfg['oas']['url']).content)
-        cfg['oas'] = {'file': '/zap/wrk/oas-downloaded.txt'}
+# ## Copy or download API spec. to the working dir,
+# ## and adjust corresponding config section.
+# if isinstance(cfg.get('oas'), dict):
+#     if cfg['oas'].get('file'):
+#         try:
+#             shutil.copy(Path(cfg['oas']['file']), Path(args.out_dir))
+#         except shutil.SameFileError as e:
+#             pass
+#         cfg['oas'] = {'file': '/zap/wrk/' + Path(cfg['oas']['file']).name}
+#     elif cfg['oas'].get('url'):
+#         with open(Path(args.out_dir, 'oas-downloaded.txt'), 'wb') as fo:
+#             fo.write(requests.get(cfg['oas']['url']).content)
+#         cfg['oas'] = {'file': '/zap/wrk/oas-downloaded.txt'}
+#
+## Not supported by jockey, for now.
+## So suppressing 'oas' at all to avoid 'openapi' config section generation.
+del cfg['oas']
 
 cfg['job_id'] = args.job_id
 
