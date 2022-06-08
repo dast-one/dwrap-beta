@@ -9,3 +9,5 @@ RUN echo 'deb http://mirrors.dotsrc.org/kali kali-rolling main contrib non-free'
 ENV PYTHONPATH=/usr/share/sqlmap
 COPY ./openapi_sqlmap.py ./sqlmap-jockey.py /usr/share/sqlmap/
 RUN ln -s '../share/sqlmap/sqlmap-jockey.py' /usr/bin/sqlmap-jockey
+
+ENTRYPOINT [ "sqlmap-jockey" ]

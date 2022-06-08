@@ -118,34 +118,47 @@ def thread_worker(sqlmap_task):
 
 ap = argparse.ArgumentParser()
 ap.add_argument('-u', '--url', required=True, help='Base URL')
-ap.add_argument('-s', '--oas', required=True, type=pathlib.Path, help='OpenAPI Spec file')
+ap.add_argument('-s', '--oas', required=False, type=pathlib.Path, help='OpenAPI Spec file')
 ap.add_argument('-H', action='append', default=list(), help='Additional header, may be used multiple times')
-ap.add_argument('--dry_run', action='store_true', help="Do not actually run scan (useful for debugging)")
-ap.add_argument('--log_debug', action='store_true', help="setLevel logging.DEBUG")
-ap.add_argument('--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
-# ap.print_help()
+ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true', help='Do not actually run scan (useful for debugging)')
+ap.add_argument('-v', '--log-debug', '--log_debug', action='store_true', help='Be verbose (setLevel logging.DEBUG)')
+ap.add_argument('-t', '--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
 args = ap.parse_args()
 
 if args.log_debug:
     logger.setLevel(logging.DEBUG)
 
-pool_sema = threading.BoundedSemaphore(args.threads)
+subprocess.run(
+    shlex.split('... sqlmapapi -s ...')
+)
 
 sm = SqlmapApiClient()
 if not args.dry_run:
     sm.list_tasks()
 
-for smt in sqlmap_tasks(oas_load(args.oas)):
-    u = '/'.join((args.url.rstrip('/'), smt['url'].lstrip('/')))
-    t = threading.Thread(
-        target=thread_worker,
-        args=(
-            f"new -u {u} -X {smt['method']}"
-            + ' -H "User-Agent:masc-fu-squma"'
-            + ''.join(f" -H '{hdr}'" for hdr in args.H) # ...maybe hdr.replace("'", r"\'") ?
-            + (f" --data '{smt['data']}'" if smt.get('data') else '')
-            + ' --random-agent --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
+if args.oas:
+    # Scanning all the methods defined in the spec.
+    pool_sema = threading.BoundedSemaphore(args.threads)
+    for smt in sqlmap_tasks(oas_load(args.oas)):
+        u = '/'.join((args.url.rstrip('/'), smt['url'].lstrip('/')))
+        t = threading.Thread(
+            target=thread_worker,
+            args=(
+                f"new -u {u} -X {smt['method']}"
+                + ' -H "User-Agent:masc-fu-squma"'
+                + ''.join(f" -H '{hdr}'" for hdr in args.H) # ...maybe hdr.replace("'", r"\'") ?
+                + (f" --data '{smt['data']}'" if smt.get('data') else '')
+                + ' --random-agent --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
+            )
         )
+        t.start()
+else:
+    # Scanning the web-app
+    thread_worker(
+        f"new -u {args.url}"
+        + ' -H "User-Agent:masc-fu-squma"'
+        + ''.join(f" -H '{hdr}'" for hdr in args.H) # ...maybe hdr.replace("'", r"\'") ?
+        + ' --crawl-exclude="logout"' # WARN: exclude-paths regex hardcoded
+        + ' --crawl=2 --forms --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
     )
-    t.start()
 
