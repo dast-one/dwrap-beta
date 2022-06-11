@@ -27,7 +27,7 @@ def _sample_for_schema(sd, oas):
             d = d[k]
         return _sample_for_schema(d, oas)
 
-    if sd['type'] == 'object':
+    if sd.get('type', 'object') == 'object': # Absent 'type' should be treated as 'object'?!
         return dict((p, _sample_for_schema(s, oas)) for (p, s) in sd.get('properties', dict()).items())
     elif sd['type'] == 'array':
         return list(_sample_for_schema(sd['items'], oas) for _ in range(3))
