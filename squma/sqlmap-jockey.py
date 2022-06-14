@@ -69,6 +69,7 @@ class SqlmapApiClient:
             taskid = None
             raise
 
+        del cmdLineOptions['stdinPipe'] # A hack against callable_iterator in different docker container environments
         for key in list(cmdLineOptions):
             if cmdLineOptions[key] is None:
                 del cmdLineOptions[key]
