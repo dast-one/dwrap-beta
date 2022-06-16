@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+IN_FILE="${1:-/wrk/oapispec}"
+OUT_FILE="${2:-/wrk/oapispec}"
+
+docker-entrypoint.sh \
+  generate \
+  --generator-name openapi \
+  --log-to-stderr \
+  --input-spec "$IN_FILE" \
+  --output /tmp/oapiconv \
+&& mv -v /tmp/oapiconv/openapi.json "$OUT_FILE"
+
