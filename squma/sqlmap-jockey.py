@@ -2,13 +2,14 @@
 
 import argparse
 import json
-import jsonschema
 import pathlib
 import shlex
 import subprocess
 import sys
 import threading
 from datetime import datetime
+
+import jsonschema
 
 from lib.utils.api import *
 from lib.utils.api import _client
@@ -152,9 +153,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
 ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='sq-report', help='Override report filename (without extension)')
-# ap.add_argument('-u', '--url', required=True, help='Base URL')
-# ap.add_argument('-s', '--oas', required=False, type=pathlib.Path, help='OpenAPI Spec file')
-# ap.add_argument('-H', action='append', default=list(), help='Additional header, may be used multiple times')
 ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true', help='Do not actually run scan (useful for debugging)')
 ap.add_argument('-v', '--log-debug', '--log_debug', action='store_true', help='Be verbose (setLevel logging.DEBUG)')
 ap.add_argument('-t', '--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
@@ -183,8 +181,9 @@ else:
 ## Output (reports) will go there
 pathlib.Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
-subprocess.Popen(shlex.split('sqlmapapi -s'))
-time.sleep(2)
+if not args.dry_run:
+    subprocess.Popen(shlex.split('sqlmapapi -s'))
+    time.sleep(2)
 
 pool_sema = threading.BoundedSemaphore(args.threads)
 
@@ -219,6 +218,8 @@ else:
         + ' --crawl=2 --forms --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
     )
 
+if args.dry_run:
+    sys.exit(0)
 
 ## --------------------------------------------------------------------
 ## -- Combine all the reports and zap-format the result

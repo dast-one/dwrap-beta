@@ -12,19 +12,19 @@ OUT:
         depending on ZAP run method.
 """
 
-
 import argparse
-import docker
-import jinja2
 import json
-import jsonschema
-import requests
 import shlex
 import shutil
 import subprocess
 import sys
 import uuid
 from pathlib import Path
+
+import docker
+import jinja2
+import jsonschema
+import requests
 
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
