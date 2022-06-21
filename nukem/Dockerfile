@@ -9,5 +9,5 @@ RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python \
 COPY ./nuclei-jockey.py /usr/local/bin/nuclei-jockey
 
 RUN nuclei -update-templates
-# ENTRYPOINT [ "nuclei", "-ni", "-duc" ]
+
 ENTRYPOINT [ "/usr/local/bin/nuclei-jockey" ]

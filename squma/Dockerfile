@@ -11,4 +11,4 @@ ENV PYTHONPATH=/usr/share/sqlmap
 COPY ./openapi_sqlmap.py ./sqlmap-jockey.py /usr/share/sqlmap/
 RUN ln -s '../share/sqlmap/sqlmap-jockey.py' /usr/bin/sqlmap-jockey
 
-ENTRYPOINT [ "sqlmap-jockey" ]
+ENTRYPOINT [ "/usr/bin/sqlmap-jockey" ]
