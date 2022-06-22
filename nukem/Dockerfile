@@ -1,12 +1,14 @@
 FROM projectdiscovery/nuclei
 
 ENV PYTHONUNBUFFERED=1
-RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python \
+RUN apk add --update --no-cache python3 postgresql-dev gcc python3-dev musl-dev \
+    && ln -sf python3 /usr/bin/python \
     && python3 -m ensurepip \
     && pip3 install --no-cache --upgrade pip setuptools \
-  jsonschema
+  jsonschema dateutils psycopg2 sqlalchemy
 
 COPY ./nuclei-jockey.py /usr/local/bin/nuclei-jockey
+COPY ./.env ./zreprt-pgup.py /usr/local/bin/
 
 RUN nuclei -update-templates
 

@@ -3,3 +3,5 @@
 # except required
 !openapi_sqlmap.py
 !sqlmap-jockey.py
+!zreprt-pgup.py
+!.env

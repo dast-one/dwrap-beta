@@ -55,6 +55,8 @@ parser.add_argument('--job-id', default=str(uuid.uuid1()), help='Set Job Id inst
 parser.add_argument('--docker-image', default='zap-plus', help='Override Docker image name')
 parser.add_argument('--disable-active-scan', action='store_true', help='Skip ZAP Active scan')
 parser.add_argument('--zap-reportfile', default='zap-report', help='Override ZAP report filename (without extension)')
+parser.add_argument('--hack-upload-report-to')
+parser.add_argument('--hack-upload-report-for')
 action_grp = parser.add_mutually_exclusive_group(required=False)
 action_grp.add_argument('--run-zap-docker', action='store_true', help="A method how to run ZAP. Dry run by default.")
 action_grp.add_argument('--run-zap-sh', action='store_true', help="A method how to run ZAP. Dry run by default.")
@@ -137,6 +139,12 @@ if args.run_zap_sh:
     subprocess.run(
         shlex.split('./zap.sh -cmd -autorun /zap/wrk/zap-af.yaml -configfile /zap/wrk/zap-options.cfg')
     )
+
+    if args.hack_upload_report_to and args.hack_upload_report_for:
+        subprocess.run(
+            shlex.split(f"/usr/local/bin/zreprt-pgup.py -r {Path(args.out_dir, 'out', args.zap_reportfile + '.json')} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}"),
+            cwd='/usr/local/bin'
+        )
 
 if args.run_zap_docker:
     dclient = docker.from_env()

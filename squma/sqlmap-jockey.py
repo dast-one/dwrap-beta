@@ -2,12 +2,12 @@
 
 import argparse
 import json
-import pathlib
 import shlex
 import subprocess
 import sys
 import threading
 from datetime import datetime
+from pathlib import Path
 
 import jsonschema
 
@@ -115,14 +115,14 @@ class SqlmapApiClient:
 
 
 def dump_reports(scan_result):
-    pathlib.Path(args.out_dir, 'jy').mkdir(parents=False, exist_ok=True)
-    with open(pathlib.Path(args.out_dir, 'jy', f"{scan_result['taskid']}.log.ndjson"), 'w') as fo:
+    Path(args.out_dir, 'jy').mkdir(parents=False, exist_ok=True)
+    with open(Path(args.out_dir, 'jy', f"{scan_result['taskid']}.log.ndjson"), 'w') as fo:
         fo.writelines(json.dumps(e) + '\n' for e in scan_result.get('log', []).get('log'))
-    with open(pathlib.Path(args.out_dir, 'jy', f"{scan_result['taskid']}.status.json"), 'w') as fo:
+    with open(Path(args.out_dir, 'jy', f"{scan_result['taskid']}.status.json"), 'w') as fo:
         json.dump(scan_result['status'], fo)
-    with open(pathlib.Path(args.out_dir, 'jy', f"{scan_result['taskid']}.data.json"), 'w') as fo:
+    with open(Path(args.out_dir, 'jy', f"{scan_result['taskid']}.data.json"), 'w') as fo:
         json.dump(scan_result['data'], fo)
-    with open(pathlib.Path(args.out_dir, 'jy', f"{scan_result['taskid']}.config.json"), 'w') as fo:
+    with open(Path(args.out_dir, 'jy', f"{scan_result['taskid']}.config.json"), 'w') as fo:
         json.dump(scan_result['config'], fo)
 
 def thread_worker(sqlmap_task):
@@ -156,6 +156,8 @@ ap.add_argument('--reportfile', default='sq-report', help='Override report filen
 ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true', help='Do not actually run scan (useful for debugging)')
 ap.add_argument('-v', '--log-debug', '--log_debug', action='store_true', help='Be verbose (setLevel logging.DEBUG)')
 ap.add_argument('-t', '--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
+ap.add_argument('--hack-upload-report-to')
+ap.add_argument('--hack-upload-report-for')
 args = ap.parse_args()
 
 if args.log_debug:
@@ -179,7 +181,7 @@ else:
         sys.exit(1)
 
 ## Output (reports) will go there
-pathlib.Path(args.out_dir).mkdir(parents=False, exist_ok=True)
+Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
 if not args.dry_run:
     subprocess.Popen(shlex.split('sqlmapapi -s'))
@@ -199,7 +201,7 @@ if (cfg.get('oas') or dict()).get('file'):
             target=thread_worker,
             args=(
                 f"new -u {u} -X {smt['method']}"
-                # + (f" --output-dir={pathlib.Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
+                # + (f" --output-dir={Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
                 + ' -H "User-Agent:masc-fu-squma"'
                 + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']) # TODO: maybe, ...replace("'", r"\'") ?
                 + (f" --data '{smt['data']}'" if smt.get('data') else '')
@@ -211,7 +213,7 @@ else:
     # Scanning the web-app
     thread_worker(
         f"new -u {cfg['endpoints'][0]}"
-        + (f" --output-dir={pathlib.Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
+        + (f" --output-dir={Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
         + ' -H "User-Agent:masc-fu-squma"'
         + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']) # TODO: maybe, ...replace("'", r"\'") ?
         + ' --crawl-exclude="logout"' # WARN: exclude-paths regex hardcoded
@@ -242,7 +244,7 @@ report = {
     }]
 }
 
-for f in pathlib.Path(args.out_dir, 'jy').glob('*.data.json'):
+for f in Path(args.out_dir, 'jy').glob('*.data.json'):
     with open(f) as fo:
         r = json.load(fo)
     if not r['success'] or not r['data']:
@@ -290,6 +292,12 @@ for f in pathlib.Path(args.out_dir, 'jy').glob('*.data.json'):
         }
         report['site'][0]['alerts'].append(alert)
 
-with open(pathlib.Path(args.out_dir, args.reportfile), 'w') as fo:
+with open(Path(args.out_dir, args.reportfile), 'w') as fo:
     json.dump(report, fo)
+
+if args.hack_upload_report_to and args.hack_upload_report_for:
+    subprocess.run(
+        shlex.split(f'/usr/share/sqlmap/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
+        cwd='/usr/share/sqlmap'
+    )
 
