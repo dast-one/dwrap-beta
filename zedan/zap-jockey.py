@@ -95,7 +95,8 @@ else:
 #
 ## Not supported by jockey, for now.
 ## So suppressing 'oas' at all to avoid 'openapi' config section generation.
-del cfg['oas']
+if 'oas' in cfg:
+    del cfg['oas']
 
 cfg['job_id'] = args.job_id
 
