@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 COPY ./templates-zap /usr/local/share/masc/
 COPY ./zap-jockey.py /usr/local/bin/zap-jockey
 COPY ./.env ./zreprt-pgup.py /usr/local/bin/
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --disable-pip-version-check \
     Jinja2 \
     jsonschema \
     docker
