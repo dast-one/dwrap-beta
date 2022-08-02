@@ -5,6 +5,7 @@ OUT_FILE="${2:-/wrk/oapispec}"
 
 docker-entrypoint.sh \
   generate \
+  --skip-validate-spec \
   --generator-name openapi \
   --log-to-stderr \
   --input-spec "$IN_FILE" \
