@@ -25,12 +25,23 @@ make dump
 Sample usage:
 
 ```sh
-python3 gen-zapenv.py -t templates-zap -o _tmp/zo <<< '
+python3 zap-jockey.py -t templates-zap -o _tmp/zo <<< '
     {
         "endpoints": [
             "http://172.17.0.4:8081",
             "http://172.17.0.4:8081/klmn",
             "http://172.17.0.4:8081/prst"
+        ],
+        "excludepaths": [
+            ".*/static/.*",
+            ".*\\.js",
+            ".*\\.css",
+            ".*\\.png",
+            ".*\\.jpg",
+            ".*\\.jpeg",
+            ".*\\.svg",
+            ".*exit",
+            ".*logout.*"
         ],
         "headers": [
             ["X-Auth-Token", "00112233445566778899aabbccddeeff"]
