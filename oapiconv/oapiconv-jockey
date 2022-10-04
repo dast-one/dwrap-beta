@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
 IN_FILE="${1:-/wrk/oapispec}"
-OUT_FILE="${2:-/wrk/oapispec}"
+OUT_FILE="${2:-/wrk/oapi.json}"
 
 docker-entrypoint.sh \
   generate \
+  --skip-validate-spec \
   --generator-name openapi \
   --log-to-stderr \
   --input-spec "$IN_FILE" \
   --output /tmp/oapiconv \
-&& mv -v /tmp/oapiconv/openapi.json "$OUT_FILE"
+  2>&1 | tee /tmp/oapiconv-errlog.txt
 
+egrep '^\[main\] (WARN|ERR)' /tmp/oapiconv-errlog.txt \
+  | sed -e 's/^\S\+\s\+\S\+\s\+//' | sort | uniq \
+  > "$(dirname $OUT_FILE)/oapiconv-errlog.txt"
+
+cp -v /tmp/oapiconv/openapi.json "$OUT_FILE"
