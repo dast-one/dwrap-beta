@@ -36,10 +36,13 @@ ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='rlr-report', help='Override report filename (without extension)')
 ap.add_argument('--hack-upload-report-to')
 ap.add_argument('--hack-upload-report-for')
-## TODO: Maybe, worth adding options
-##  --dry-run    compile only
-##  --lite       compile+test
-##  --full-scan  FuzzLean+Fuzz
+action_grp = ap.add_mutually_exclusive_group(required=False)
+action_grp.add_argument('-n', '--dry-run', action='store_true',
+    help='Do not actually run scan (useful for debugging)')
+action_grp.add_argument('-a', '--aggressiveness', '--action',
+    default='lite', choices=['dry', 'test', 'lite', 'full'],
+    help='Scan aggressiveness. "Lite" run by default.')
+
 args = ap.parse_args()
 
 if args.scan_request_from_file is None:
@@ -86,12 +89,11 @@ Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 subprocess.run([
     '/RESTler/restler/Restler'
     , 'compile'
-    , '--api_spec', '/wrk/_____________________.yaml'
-])
-
+    , '--api_spec', cfg['oas']['file']
+], cwd=args.out_dir)
 
 ## Update the config (engine_settings.json)
-with open('..../engine_settings.json') as fo:
+with open(Path(args.out_dir, 'Compile/engine_settings.json')) as fo:
     rlr_cfg = json.load(fo)
 
 rlr_cfg.update({
@@ -119,23 +121,37 @@ token_refresh_interval: int (default None)
 save_results_in_fixed_dirname: bool (default False, ??, "skip the 'experiment<pid>' subdir")
 '''
 
-with open('..../engine_settings.json', 'w') as fo:
+with open(Path(args.out_dir, 'Compile/engine_settings.json'), 'w') as fo:
     json.dump(rlr_cfg, fo, indent=4)
 
 
 # The action
-subprocess.run([
-    '/RESTler/restler/Restler'
-    # , 'test'       # \
-    # , 'fuzz-lean'  #  > TODO
-    # , 'fuzz'       # /
-    , '--target_ip', '127.0.0.1'
-    , '--target_port', '10013'
-    , '--grammar_file', 'Compile/grammar.py'
-    , '--dictionary_file', 'Compile/dict.json'
-    # , '--no_ssl' if ____ else ''
-    , '--settings', 'Compile/engine_settings.json'
-])
+if args.dry_run or args.aggressiveness == 'dry':
+    sys.exit(0)
+if not args.dry_run and args.aggressiveness in ['test', 'lite', 'full']:
+    subprocess.run([
+        '/RESTler/restler/Restler'
+        , 'test'
+        , '--grammar_file', 'Compile/grammar.py'
+        , '--dictionary_file', 'Compile/dict.json'
+        , '--settings', 'Compile/engine_settings.json'
+    ], cwd=args.out_dir)
+if not args.dry_run and args.aggressiveness == 'lite':
+    subprocess.run([
+        '/RESTler/restler/Restler'
+        , 'fuzz-lean'
+        , '--grammar_file', 'Compile/grammar.py'
+        , '--dictionary_file', 'Compile/dict.json'
+        , '--settings', 'Compile/engine_settings.json'
+    ], cwd=args.out_dir)
+if not args.dry_run and args.aggressiveness == 'full':
+    subprocess.run([
+        '/RESTler/restler/Restler'
+        , 'fuzz'
+        , '--grammar_file', 'Compile/grammar.py'
+        , '--dictionary_file', 'Compile/dict.json'
+        , '--settings', 'Compile/engine_settings.json'
+    ], cwd=args.out_dir)
 
 
 ## --------------------------------------------------------------------
@@ -153,45 +169,7 @@ report = {
     }]
 }
 
-# with open(Path(args.out_dir, args.reportfile).with_suffix('.nuorig')) as fo:
-#     z = [json.loads(rline) for rline in fo.readlines()]
-#     for r in z:
-#         alert = {
-#             'pluginid': '-8',
-#             'alertRef': '-8',
-#             'alert': r['info']['name'],
-#             'name': r['info']['name'],
-#             'riskcode': {
-#                 'info': '1',
-#                 'low': '1',
-#                 'medium': '2',
-#                 'high': '3',
-#                 'critical': '3',
-#                 'unknown': 'x3',
-#             }.get(r['info']['severity'], 'x3 (WTF?!)'),
-#             'confidence': '2',
-#             'riskdesc': '',
-#             'desc': r['info']['name'],
-#             'instances': [{
-#                 'uri': r['matched-at'],
-#                 'method': '',
-#                 'param': '',
-#                 'attack': '',
-#                 'evidence': '',
-#                 'request-header': '',
-#                 'request-body': r.get('request', ''),
-#                 'response-header': '',
-#                 'response-body': r.get('response', ''),
-#             }],
-#             'count': '1',
-#             'solution': '',
-#             'otherinfo': '\n'.join(r.get('extracted-results', [])),
-#             'reference': '\n'.join(r['info']['reference'] or []),
-#             'cweid': '',
-#             'wascid': '',
-#             'sourceid': '',
-#         }
-#         report['site'][0]['alerts'].append(alert)
+# TODO: IMPLEMENT THIS
 
 # with open(Path(args.out_dir, args.reportfile), 'w') as fo:
 #     json.dump(report, fo)
