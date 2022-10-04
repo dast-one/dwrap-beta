@@ -232,6 +232,9 @@ while not (
     ):
     time.sleep(7)
 
+time.sleep(7)
+print('Tasks:', sm.list_tasks()['tasks'], sep='\n')
+
 report = {
     '@version': 'x3',
     '@generated': datetime.now().ctime(),
@@ -244,11 +247,14 @@ report = {
     }]
 }
 
+print('Result files to parse:', list(Path(args.out_dir, 'jy').glob('*.data.json')), sep='\n')
+
 for f in Path(args.out_dir, 'jy').glob('*.data.json'):
     with open(f) as fo:
         r = json.load(fo)
     if not r['success'] or not r['data']:
         continue
+    print('Processing', f)
 
     # WARN Fail-driven dev. part; refs:
     # - srch. '/data' at https://github.com/sqlmapproject/sqlmap/blob/master/lib/utils/api.py
