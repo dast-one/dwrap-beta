@@ -36,6 +36,9 @@ ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='rlr-report', help='Override report filename (without extension)')
 ap.add_argument('--hack-upload-report-to')
 ap.add_argument('--hack-upload-report-for')
+ap.add_argument('--skip-compile', action='store_true', default=False)
+ap.add_argument('--max_request_execution_time', type=int, default=6, help='(seconds) (ref: rlr engine settings)')
+ap.add_argument('--time_budget', type=int, default=4, help='(hours) (ref: rlr engine settings)')
 action_grp = ap.add_mutually_exclusive_group(required=False)
 action_grp.add_argument('-n', '--dry-run', action='store_true',
     help='Do not actually run scan (useful for debugging)')
@@ -86,11 +89,12 @@ Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
 
 ## Compile the spec, alse prepare engine_settings
-subprocess.run([
-    '/RESTler/restler/Restler'
-    , 'compile'
-    , '--api_spec', cfg['oas']['file']
-], cwd=args.out_dir)
+if not args.skip_compile:
+    subprocess.run([
+        '/RESTler/restler/Restler'
+        , 'compile'
+        , '--api_spec', cfg['oas']['file']
+    ], cwd=args.out_dir)
 
 ## Update the config (engine_settings.json)
 with open(Path(args.out_dir, 'Compile/engine_settings.json')) as fo:
@@ -100,6 +104,11 @@ rlr_cfg.update({
     'include_user_agent': False,
     'disable_cert_validation': True,
     'ignore_decoding_failures': True,
+})
+
+rlr_cfg.update({
+    'max_request_execution_time': args.max_request_execution_time,
+    'time_budget': args.time_budget,
 })
 
 rlr_cfg.update(
