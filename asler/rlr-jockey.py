@@ -76,7 +76,7 @@ def u2r(url):
         'target_ip': host_resolved,
         'target_port': u.port or 80,
         'no_ssl': not u.scheme.lower().endswith('s'),
-        'host': u.hostname if u.hostname != host_resolved else None,
+        'host': u.hostname,
         'basepath': u.path,
     }
 
