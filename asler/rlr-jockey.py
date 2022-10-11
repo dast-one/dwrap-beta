@@ -38,6 +38,7 @@ ap.add_argument('--hack-upload-report-to')
 ap.add_argument('--hack-upload-report-for')
 ap.add_argument('--skip-compile', action='store_true', default=False)
 ap.add_argument('--max_request_execution_time', type=int, default=6, help='(seconds) (ref: rlr engine settings)')
+ap.add_argument('--token_refresh_interval', type=int, default=86400, help='(seconds) (ref: rlr engine settings)')
 ap.add_argument('--time_budget', type=int, default=4, help='(hours) (ref: rlr engine settings)')
 action_grp = ap.add_mutually_exclusive_group(required=False)
 action_grp.add_argument('-n', '--dry-run', action='store_true',
@@ -115,6 +116,22 @@ rlr_cfg.update(
     u2r(cfg['endpoints'][0])
 )
 
+if cfg['headers']:
+    tknr = Path(args.out_dir, 'rlr_tkn.sh')
+    with open(tknr, 'w') as fo:
+        fo.writelines(
+            [
+                '#!/bin/sh\n',
+                'echo \'{u"x3": {}}\'\n',
+            ]
+            + [f"echo '{h}: {v}'\n" for (h, v) in cfg['headers']]
+        )
+    tknr.chmod(tknr.stat().st_mode | 0o111) # like chmod +x
+    rlr_cfg.update({
+        'token_refresh_cmd': tknr.resolve().as_posix(),
+        'token_refresh_interval': args.token_refresh_interval,
+    })
+
 '''
 exclude_requests: list (default empty list=No filtering)
     # "exclude_requests": [
@@ -123,9 +140,6 @@ exclude_requests: list (default empty list=No filtering)
     #         "methods": ["GET", "DELETE"]
     #     }
     # ]
-
-token_refresh_cmd: str (default None)
-token_refresh_interval: int (default None)
 
 save_results_in_fixed_dirname: bool (default False, ??, "skip the 'experiment<pid>' subdir")
 '''
