@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 
 import jsonschema
 
+from rlr import ErrorBucket, eb_collection
+
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
     "endpoints": {"type": "array", "minItems": 1,
@@ -192,14 +194,53 @@ report = {
     }]
 }
 
-# TODO: IMPLEMENT THIS
+with open(Path(args.out_dir, 'FuzzLean/ResponseBuckets/errorBuckets.json')) as fo:
+    jfo = json.load(fo)
 
-# with open(Path(args.out_dir, args.reportfile), 'w') as fo:
-#     json.dump(report, fo)
+for eb in eb_collection(jfo):
+    report['site'][0]['alerts'].append(
+        {
+            'pluginid': '-9',
+            'alertRef': f'{eb.c}-{eb.bkt}',
+            'alert': f'{eb.c}-{eb.bkt}',
+            'name': (
+                ', '.join(sorted(set(rr.res.codeDescription for rr in eb.rrz)))
+                + (' [fail]' if any(rr.res.isFailure for rr in eb.rrz) else '')
+                + (' [bug]' if any(rr.res.isBug for rr in eb.rrz) else '')
+            ),
+            'riskcode': eb.risk_value(),
+            'confidence': '1',
+            'riskdesc': '',
+            'desc': '',
+            'instances': [
+                {
+                    'uri': rr.qry.path,
+                    'method': rr.qry.method,
+                    'param': '',
+                    'attack': '',
+                    'evidence': '',
+                    'request-header': '',
+                    'request-body': rr.qry.body,
+                    'response-header': '',
+                    'response-body': rr.res.content,
+                }
+                for rr in eb.rrz
+            ],
+            'count': str(len(eb.rrz)),
+            'solution': '',
+            'otherinfo': '',
+            'reference': '',
+            'cweid': '',
+            'wascid': '',
+            'sourceid': '',
+        }
+    )
 
-# if args.hack_upload_report_to and args.hack_upload_report_for:
-#     subprocess.run(
-#         shlex.split(f'/usr/local/bin/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
-#         cwd='/usr/local/bin'
-#     )
+with open(Path(args.out_dir, args.reportfile), 'w') as fo:
+    json.dump(report, fo)
 
+if args.hack_upload_report_to and args.hack_upload_report_for:
+    subprocess.run(
+        shlex.split(f'/usr/local/bin/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
+        cwd='/usr/local/bin'
+    )
