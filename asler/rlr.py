@@ -81,6 +81,10 @@ def eb_collection(jfo) -> list[ErrorBucket]:
                 ]
             )
 
+def eb_collection_other(jfo) -> list[ErrorBucket]:
+    """experiment/bug_buckets/* -> collection of buckets"""
+    pass
+
 
 if __name__ == '__main__':
 
@@ -171,10 +175,16 @@ if __name__ == '__main__':
     bp = Path(args.scan_request_from_file).expanduser().parent
     e = args.extra
 
-    with open(Path(bp, e, 'FuzzLean/ResponseBuckets/errorBuckets.json')) as fo:
-        jfo = json.load(fo)
+    if (p := Path(bp, e, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
+        with open(p) as fo:
+            jfo = json.load(fo)
+            ebc = eb_collection(jfo)
+    elif (p := Path(next(Path(bp, e, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
+        with open(p) as fo:
+            jfo = json.load(fo)
+            ebc = eb_collection_other(jfo)
 
-    for eb in eb_collection(jfo):
+    for eb in ebc:
         report['site'][0]['alerts'].append(
             {
                 'pluginid': '-9',
