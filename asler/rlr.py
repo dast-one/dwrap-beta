@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 
 
@@ -34,7 +35,7 @@ class Err:
         )
     #
     def risk_value(self):
-        """Returns riskcode interms of ZAP."""
+        """Returns riskcode in terms of ZAP."""
         if self.res.isBug:
             return '3'
         elif self.res.isFailure:
@@ -51,17 +52,21 @@ class ErrorBucket:
     bkt: str
     rrz: list[Err] = field(default_factory=list)
     #
+    checker: str|None = None
+    checker_tag: str|None = None
+    checker_data: str|None = None
+    #
     def is_consistent(self) -> bool:
         return (
             all(all(rr.is_consistent()) for rr in self.rrz),
         )
     #
     def risk_value(self):
-        """Returns riskcode interms of ZAP."""
+        """Returns riskcode in terms of ZAP."""
         return max(map(Err.risk_value, self.rrz))
 
 
-def eb_collection(jfo) -> list[ErrorBucket]:
+def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
     """errorBuckets.json contents -> collection of buckets"""
     for c, bkts in jfo.items():
         print('----', f'code-group: {c}', f'{len(bkts)} bucket(s) here', sep='\t')
@@ -81,9 +86,63 @@ def eb_collection(jfo) -> list[ErrorBucket]:
                 ]
             )
 
-def eb_collection_other(jfo) -> list[ErrorBucket]:
+def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
     """experiment/bug_buckets/* -> collection of buckets"""
-    pass
+    # 
+    def _get_checker_contents(text, p=re.compile(
+        r'#+?\n'                    # ###
+        r'\s*?(\S+)_(\d+)\n'        # checker name, http code
+        r'(?:\s+(.+?)(?:\n(.+?))?\s+)?' # checker specific tag, data
+        r'\s*?Hash: \1_\2_(\w+)\n'  # (bucket/checker?) hash
+        r'.*?'                      # ...
+        r'#+?\n'                    # ###
+        r'\n'
+        r'-> (\w+) (.*?) (HTTP/\S+.*?)\n' # method, path, request
+        r'(?:^!.*?\n)*?'            # engine/checker settings
+        r'PREVIOUS RESPONSE: .(.*?).\n' # response
+        # WARN: Single (first matched) request-response block supported.
+        # TODO: Research how many request-response blocks may be there, and adjust the regex.
+    , re.MULTILINE + re.DOTALL)):
+        if m := p.match(text):
+            return m.groups()
+    # 
+    for bx, fref in jfo.items():
+        print('---- from', fref['file_path'])
+        with open(Path(bp, fref['file_path'])) as fo:
+            (
+                checker, code,
+                checker_tag, checker_data,
+                some_hash,
+                method, path, request,
+                response
+            ) = _get_checker_contents(fo.read())
+        request = eval('str("' + request.replace('"', r'\"') + '")')
+        response = eval('str("' + response.replace('"', r'\"') + '")')
+        print('got', f'{checker}_{code}_{some_hash}', 'with sample for', method, path)
+        yield ErrorBucket(
+            c=code,
+            bkt=some_hash,
+            rrz=[Err(
+                c=code,
+                bkt=some_hash,
+                qry=RequestData(
+                    method=method,
+                    path=path,
+                    query=f'{method}\n{path}',
+                    body=request,
+                ),
+                res=ResponseData(
+                    code=int(code),
+                    codeDescription='',
+                    content=response,
+                    isFailure=None,
+                    isBug=None,
+                )
+            ),],
+            checker=checker,
+            checker_tag=checker_tag,
+            checker_data=checker_data,
+        )
 
 
 if __name__ == '__main__':
@@ -111,11 +170,18 @@ if __name__ == '__main__':
     ap.add_argument('-o', '--out-report', default=None, help='Output report file')
     # ap.add_argument('--hack-upload-report-to')
     # ap.add_argument('--hack-upload-report-for')
-    ap.add_argument('-n', '--dry-run', action='store_true')
+    ap.add_argument('-n', '--dry-run', default=False, action='store_true')
+    ap.add_argument('--skip_errbuckets_json', default=False, action='store_true')
     args = ap.parse_args()
 
+    rlr_cfg = {
+        'host': None,
+        'no_ssl': False,
+        'target_port': -1,
+        'basepath': '',
+    }
     with open(Path(args.rlr_wrk, 'Compile/engine_settings.json')) as fo:
-        rlr_cfg = json.load(fo)
+        rlr_cfg.update(json.load(fo))
 
     # def P(x):
     #     print(json.dumps(x, indent=4, ensure_ascii=False))
@@ -150,7 +216,7 @@ if __name__ == '__main__':
         'site': [{
             '@name': f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
                      f"{rlr_cfg['host'] or '...'}"
-                     f"{'' if (whether_default_port_configured) else ':' + rlr_cfg['target_port']}"
+                     f"{'' if (whether_default_port_configured) else ':' + str(rlr_cfg['target_port'])}"
                      f"/{rlr_cfg['basepath'].strip('/')}",
             '@host': rlr_cfg['host'],
             '@port': str(rlr_cfg['target_port']),
@@ -159,14 +225,14 @@ if __name__ == '__main__':
         }]
     }
 
-    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
+    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file() and not args.skip_errbuckets_json:
         with open(p) as fo:
             jfo = json.load(fo)
-            ebc = eb_collection(jfo)
+            ebc = ebkt_collection_from_errbuckets_json(jfo)
     elif (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
         with open(p) as fo:
             jfo = json.load(fo)
-            ebc = eb_collection_other(jfo)
+            ebc = ebkt_collection_from_bugbuckets_txts(jfo, p.parent)
 
     for eb in ebc:
         report['site'][0]['alerts'].append(
