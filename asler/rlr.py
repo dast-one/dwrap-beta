@@ -107,35 +107,15 @@ if __name__ == '__main__':
 
 
     ap = argparse.ArgumentParser()
-    ap.add_argument('-i', '--scan-request-from-file', default=None, help='Scan request from JSON-file')
-    ap.add_argument('-e', '--extra', default='', help='endpoint/subdir(tricky-hacky) TODO doc this!')
-    ap.add_argument('-o', '--out_report', default=None, help='Output report file')
+    ap.add_argument('-r', '--rlr-wrk', default='.', help='Restler wrk-dir as base path for its data to read.')
+    ap.add_argument('-o', '--out-report', default=None, help='Output report file')
     # ap.add_argument('--hack-upload-report-to')
     # ap.add_argument('--hack-upload-report-for')
     ap.add_argument('-n', '--dry-run', action='store_true')
     args = ap.parse_args()
 
-    with open(args.scan_request_from_file) as fo:
-        cfg = json.load(fo)
-
-    def u2r(url):
-        """Parse endpoint URL into the options required by Restler."""
-        u = urlparse(url if '//' in url else f'//{url}',
-                     scheme='http', allow_fragments=False)
-        try:
-            host_resolved = socket.gethostbyname(u.hostname)
-        except Exception as e:
-            print(f'Failed to resolve "{u.hostname}" (from the URL "{url}")\n', file=sys.stderr)
-            raise e
-        return {
-            'target_ip': host_resolved,
-            'target_port': u.port or 80,
-            'no_ssl': not u.scheme.lower().endswith('s'),
-            'host': u.hostname,
-            'basepath': u.path,
-        }
-
-    rlr_cfg = u2r(cfg['endpoints'][0])
+    with open(Path(args.rlr_wrk, 'Compile/engine_settings.json')) as fo:
+        rlr_cfg = json.load(fo)
 
     # def P(x):
     #     print(json.dumps(x, indent=4, ensure_ascii=False))
@@ -160,26 +140,30 @@ if __name__ == '__main__':
     ## --------------------------------------------------------------------
     ## -- Zap-format the result
 
+    whether_default_port_configured = (
+        rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 80
+        or not rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 443
+    )
     report = {
         '@version': 'x3',
         '@generated': datetime.now().ctime(),
         'site': [{
-            '@name': cfg['endpoints'][0],
-            '@host': rlr_cfg['host'] or rlr_cfg['target_ip'],
+            '@name': f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
+                     f"{rlr_cfg['host'] or '...'}"
+                     f"{'' if (whether_default_port_configured) else ':' + rlr_cfg['target_port']}"
+                     f"/{rlr_cfg['basepath'].strip('/')}",
+            '@host': rlr_cfg['host'],
             '@port': str(rlr_cfg['target_port']),
             '@ssl': str(not rlr_cfg['no_ssl']),
             'alerts': list(),
         }]
     }
 
-    bp = Path(args.scan_request_from_file).expanduser().parent
-    e = args.extra
-
-    if (p := Path(bp, e, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
+    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
         with open(p) as fo:
             jfo = json.load(fo)
             ebc = eb_collection(jfo)
-    elif (p := Path(next(Path(bp, e, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
+    elif (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
         with open(p) as fo:
             jfo = json.load(fo)
             ebc = eb_collection_other(jfo)
@@ -222,6 +206,10 @@ if __name__ == '__main__':
                 'sourceid': '',
             }
         )
+
+    if args.dry_run or args.out_report is None: 
+        print(json.dumps(report, indent=4, ensure_ascii=False), file=sys.stderr)
+        sys.exit()
 
     with open(args.out_report, 'w') as fo:
         json.dump(report, fo, indent=4, ensure_ascii=False)
