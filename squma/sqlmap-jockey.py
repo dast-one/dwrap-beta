@@ -71,6 +71,9 @@ class SqlmapApiClient:
             raise
 
         del cmdLineOptions['stdinPipe'] # A hack against callable_iterator in different docker container environments
+                                        # Maybe closed with that fix, if it appear in Kali distro (which we use as a base):
+                                        # https://github.com/sqlmapproject/sqlmap/commit/5eaf1d2d27c4abda1464a3fa23275ae0716d1b55
+
         for key in list(cmdLineOptions):
             if cmdLineOptions[key] is None:
                 del cmdLineOptions[key]
