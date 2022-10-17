@@ -66,12 +66,23 @@ class ErrorBucket:
         return max(map(Err.risk_value, self.rrz))
 
 
+def atonni_safe(s):
+    """Str to non negative integer. (Negative result is a sign of an error.)"""
+    try:
+        r = int(s)
+    except ValueError:
+        r = -1
+    except TypeError:
+        r = -2
+    return r
+
+
 def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
     """errorBuckets.json contents -> collection of buckets"""
     for c, bkts in jfo.items():
-        print('----', f'code-group: {c}', f'{len(bkts)} bucket(s) here', sep='\t')
+        # print('----', f'code-group: {c}', f'{len(bkts)} bucket(s) here', sep='\t')
         for b, rrz in bkts.items():
-            print(f'bucket: {b}', 'with', f'{len(rrz)} sample(s)', sep='\t')
+            # print(f'bucket: {b}', 'with', f'{len(rrz)} sample(s)', sep='\t')
             yield ErrorBucket(
                 c,
                 b,
@@ -91,13 +102,13 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
     # 
     def _get_checker_contents(text, p=re.compile(
         r'#+?\n'                    # ###
-        r'\s*?(\S+)_(\d+)\n'        # checker name, http code
+        r'\s*?(\S+)(?:_(\d+))?\n'   # checker name, http code
         r'(?:\s+(.+?)(?:\n(.+?))?\s+)?' # checker specific tag, data
-        r'\s*?Hash: \1_\2_(\w+)\n'  # (bucket/checker?) hash
+        r'\s*?Hash: \1(?:_\2)?_(\w+)\n'  # (bucket/checker?) hash
         r'.*?'                      # ...
         r'#+?\n'                    # ###
         r'\n'
-        r'-> (\w+) (.*?) (HTTP/\S+.*?)\n' # method, path, request
+        r'-> ["\']?(\w+) (.*?) (HTTP/\S+.*?)["\']?\n' # method, path, request
         r'(?:^!.*?\n)*?'            # engine/checker settings
         r'PREVIOUS RESPONSE: .(.*?).\n' # response
         # WARN: Single (first matched) request-response block supported.
@@ -109,6 +120,7 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
     for bx, fref in jfo.items():
         print('---- from', fref['file_path'])
         with open(Path(bp, fref['file_path'])) as fo:
+            try:
             (
                 checker, code,
                 checker_tag, checker_data,
@@ -116,6 +128,9 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                 method, path, request,
                 response
             ) = _get_checker_contents(fo.read())
+            except Exception as e:
+                print('Parser failed:', bx, fref, _get_checker_contents(fo.read()))
+                raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
         print('got', f'{checker}_{code}_{some_hash}', 'with sample for', method, path)
@@ -132,7 +147,7 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                     body=request,
                 ),
                 res=ResponseData(
-                    code=int(code),
+                    code=atonni_safe(code),
                     codeDescription='',
                     content=response,
                     isFailure=None,
