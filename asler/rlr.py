@@ -240,14 +240,23 @@ if __name__ == '__main__':
         }]
     }
 
+    # print(f'{args.rlr_wrk:70}', end=' ')
     if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file() and not args.skip_errbuckets_json:
+        # print('J', end=' ')
         with open(p) as fo:
             jfo = json.load(fo)
+            # print(len(str(jfo)), end=' ')
             ebc = ebkt_collection_from_errbuckets_json(jfo)
     elif (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
+        # print('T', end=' ')
         with open(p) as fo:
             jfo = json.load(fo)
+            # print(len(str(jfo)), end=' ')
             ebc = ebkt_collection_from_bugbuckets_txts(jfo, p.parent)
+    else:
+        # print('.', end=' ')
+        ebc = list()
+    print('[DEBUG]', f'Data loaded from {p.stem}')
 
     for eb in ebc:
         report['site'][0]['alerts'].append(
