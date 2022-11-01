@@ -121,13 +121,13 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
         print('---- from', fref['file_path'])
         with open(Path(bp, fref['file_path'])) as fo:
             try:
-            (
-                checker, code,
-                checker_tag, checker_data,
-                some_hash,
-                method, path, request,
-                response
-            ) = _get_checker_contents(fo.read())
+                (
+                    checker, code,
+                    checker_tag, checker_data,
+                    some_hash,
+                    method, path, request,
+                    response
+                ) = _get_checker_contents(fo.read())
             except Exception as e:
                 print('Parser failed:', bx, fref, _get_checker_contents(fo.read()))
                 raise e
