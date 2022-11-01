@@ -1,5 +1,7 @@
 import re
-from dataclasses import dataclass, field
+from dataclasses import field
+
+from pydantic.dataclasses import dataclass
 
 
 @dataclass
@@ -7,8 +9,8 @@ class RequestData:
     """..."""
     method: str
     path: str
-    query: str
-    body: str
+    query: str = field(repr=False)
+    body: str = field(repr=False)
 
 
 @dataclass
@@ -17,8 +19,17 @@ class ResponseData:
     code: int
     codeDescription: str
     content: str
-    isFailure: bool
-    isBug: bool
+    isFailure: bool | None
+    isBug: bool | None
+
+    def __post_init__(self):
+        # code: str to non negative integer (negative result is a sign of an error)
+        try:
+            self.code = int(self.code)
+        except ValueError:
+            self.code = -1
+        except TypeError:
+            self.code = -2
 
 
 @dataclass
@@ -66,17 +77,6 @@ class ErrorBucket:
         return max(map(Err.risk_value, self.rrz))
 
 
-def atonni_safe(s):
-    """Str to non negative integer. (Negative result is a sign of an error.)"""
-    try:
-        r = int(s)
-    except ValueError:
-        r = -1
-    except TypeError:
-        r = -2
-    return r
-
-
 def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
     """errorBuckets.json contents -> collection of buckets"""
     for c, bkts in jfo.items():
@@ -102,7 +102,7 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
     # 
     def _get_checker_contents(text, p=re.compile(
         r'#+?\n'                    # ###
-        r'\s*?(\S+)(?:_(\d+))?\n'   # checker name, http code
+        r'\s*?(\S+?)(?:_(\d+))?\n'   # checker name, http code
         r'(?:\s+(.+?)(?:\n(.+?))?\s+)?' # checker specific tag, data
         r'\s*?Hash: \1(?:_\2)?_(\w+)\n'  # (bucket/checker?) hash
         r'.*?'                      # ...
@@ -133,7 +133,8 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                 raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
-        print('got', f'{checker}_{code}_{some_hash}', 'with sample for', method, path)
+        print('got', f'::{checker}::{code}::{some_hash}::', 'with sample for', method, path)
+        print()
         yield ErrorBucket(
             c=code,
             bkt=some_hash,
@@ -147,7 +148,7 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                     body=request,
                 ),
                 res=ResponseData(
-                    code=atonni_safe(code),
+                    code=code,
                     codeDescription='',
                     content=response,
                     isFailure=None,
@@ -162,22 +163,17 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
 
 if __name__ == '__main__':
 
-    import json
-    import sys
-    from collections import Counter as C
-    from functools import reduce
-    from itertools import groupby
-    from pathlib import Path
-
     import argparse
     import json
-    import shlex
-    import socket
-    import subprocess
+    # import shlex
+    # import subprocess
     import sys
     from datetime import datetime
     from pathlib import Path
-    from urllib.parse import urlparse
+
+    sys.path.insert(1, str(Path(Path.home(), 'd1/src/dyna-misc').expanduser()))
+
+    from zreprt import ZapReport
 
 
     ap = argparse.ArgumentParser()
@@ -186,7 +182,7 @@ if __name__ == '__main__':
     # ap.add_argument('--hack-upload-report-to')
     # ap.add_argument('--hack-upload-report-for')
     ap.add_argument('-n', '--dry-run', default=False, action='store_true')
-    ap.add_argument('--skip_errbuckets_json', default=False, action='store_true')
+    # ap.add_argument('--skip_errbuckets_json', default=False, action='store_true')
     args = ap.parse_args()
 
     rlr_cfg = {
@@ -198,25 +194,6 @@ if __name__ == '__main__':
     with open(Path(args.rlr_wrk, 'Compile/engine_settings.json')) as fo:
         rlr_cfg.update(json.load(fo))
 
-    # def P(x):
-    #     print(json.dumps(x, indent=4, ensure_ascii=False))
-
-    # def PC(z, flt=None):
-    #     for x, n in C(z).items():
-    #         print(f'{n:6}  {x}')
-
-    # # P(C(f"{r['code']:6} {q['method']} {q['path']}" for q, r in rrz))
-    # PC(f"{r['code']:6} {q['method']} {q['path']}" for q, r in rrz)
-
-    # endpoints = []
-    # for ep in endpoints:
-    #     with open(Path(bp, '_reprt', 'details', f'c500-{ep}.txt'), 'w') as fo:
-    #         dump_rr(gather_rrz(ep), lambda rr: rr[1]['code'] == 500, fo)
-    # ## -- brief reports
-    # rrz = gather_rrz(endpoints)
-    # with open(Path(bp, '_reprt', 'c500.txt'), 'w') as fo:
-    #     dump_rr(rrz, lambda rr: rr[1]['code'] == 500, fo, short=True)
-
 
     ## --------------------------------------------------------------------
     ## -- Zap-format the result
@@ -226,8 +203,8 @@ if __name__ == '__main__':
         or not rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 443
     )
     report = {
-        '@version': 'x3',
-        '@generated': datetime.now().ctime(),
+        # '@version': 'x3',
+        # '@generated': datetime.now().ctime(),
         'site': [{
             '@name': f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
                      f"{rlr_cfg['host'] or '...'}"
@@ -240,23 +217,28 @@ if __name__ == '__main__':
         }]
     }
 
-    # print(f'{args.rlr_wrk:70}', end=' ')
-    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file() and not args.skip_errbuckets_json:
+    print(f'-- Mining at {args.rlr_wrk}')
+
+    # ResponseBuckets contains a run summary, which bucketizes the responses
+    #   by error code and message (if Restler.ResultsAnalyzer not failed).
+    #   This is a basis for an optional summary.
+    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
         # print('J', end=' ')
         with open(p) as fo:
             jfo = json.load(fo)
             # print(len(str(jfo)), end=' ')
             ebc = ebkt_collection_from_errbuckets_json(jfo)
-    elif (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
+        print('[DEBUG]', f'Loaded ResponseBuckets from {p.name}')
+
+    # Collect individual bug buckets created for each bug found.
+    #   This is a basis for the main report.
+    if (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
         # print('T', end=' ')
         with open(p) as fo:
             jfo = json.load(fo)
             # print(len(str(jfo)), end=' ')
             ebc = ebkt_collection_from_bugbuckets_txts(jfo, p.parent)
-    else:
-        # print('.', end=' ')
-        ebc = list()
-    print('[DEBUG]', f'Data loaded from {p.stem}')
+        print('[DEBUG]', f'Loaded bug_buckets from {p.name}')
 
     for eb in ebc:
         report['site'][0]['alerts'].append(
@@ -296,6 +278,8 @@ if __name__ == '__main__':
                 'sourceid': '',
             }
         )
+
+    ## --------------------------------------------------------------------
 
     if args.dry_run or args.out_report is None: 
         print(json.dumps(report, indent=4, ensure_ascii=False), file=sys.stderr)
