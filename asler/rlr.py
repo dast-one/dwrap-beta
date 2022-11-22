@@ -186,8 +186,6 @@ if __name__ == '__main__':
 
     import argparse
     import json
-    # import shlex
-    # import subprocess
     import sys
     from datetime import datetime
     from pathlib import Path
@@ -225,8 +223,8 @@ if __name__ == '__main__':
         or not rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 443
     )
     report = {
-        # '@version': 'x3',
-        # '@generated': datetime.now().ctime(),
+        '@version': 'x3',
+        '@generated': datetime.now().ctime(),
         'site': [{
             '@name': f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
                      f"{rlr_cfg['host'] or '...'}"
@@ -342,9 +340,3 @@ if __name__ == '__main__':
                 fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in z)))
                 fo.write(f'\n\n{z[0].query}\n{z[0].body}\n')
                 fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
-
-    # if args.hack_upload_report_to and args.hack_upload_report_for:
-    #     subprocess.run(
-    #         shlex.split(f'/usr/local/bin/zreprt-pgup.py -r {args.out_report} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
-    #         cwd='/usr/local/bin'
-    #     )
