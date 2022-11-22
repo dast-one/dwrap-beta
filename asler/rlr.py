@@ -152,6 +152,7 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                 raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
+        code = code or 0
         # print('got', f'::{checker}::{code}::{some_hash}::', 'with sample for', method, path)
         # print()
         yield ErrorBucket(
