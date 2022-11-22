@@ -80,7 +80,7 @@ def u2r(url):
         raise e
     return {
         'target_ip': host_resolved,
-        'target_port': u.port or 80,
+        'target_port': u.port or (443 if u.scheme.lower().endswith('s') else 80),
         'no_ssl': not u.scheme.lower().endswith('s'),
         'host': u.hostname,
         'basepath': u.path,
