@@ -97,8 +97,27 @@ def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
                 ]
             )
 
+
 def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
-    """experiment/bug_buckets/* -> collection of buckets"""
+    """experiment/bug_buckets/* -> collection of buckets
+
+    NOTE: BUGBUCK
+    _Bug-Bucket_ term here should be reconsidered as a _sequence_
+    as we encounter a file with more than one request marked `->`.
+
+    from pathlib import Path
+    bp = Path('~/d1/deed').expanduser()
+    for bbdir in bp.glob('**/bug_buckets'):
+        print(f' -- {bbdir}')
+        for bf in bbdir.glob('*.txt'):
+            with open(bf) as fo:
+                n = len(list(filter(
+                    None,
+                    (line.startswith('->') for line in fo.readlines())
+                )))
+            print('.' if n == 1 else n, end='')
+        print()    
+    """
     # 
     def _get_checker_contents(text, p=re.compile(
         r'#+?\n'                    # ###
@@ -112,13 +131,13 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
         r'(?:^!.*?\n)*?'            # engine/checker settings
         r'PREVIOUS RESPONSE: .(.*?).\n' # response
         # WARN: Single (first matched) request-response block supported.
-        # TODO: Research how many request-response blocks may be there, and adjust the regex.
+        # TO BE REFACTORED as soon as BUGBUCK NOTE condition triggers
     , re.MULTILINE + re.DOTALL)):
         if m := p.match(text):
             return m.groups()
     # 
     for bx, fref in jfo.items():
-        print('---- from', fref['file_path'])
+        # print('---- from', fref['file_path'])
         with open(Path(bp, fref['file_path'])) as fo:
             try:
                 (
@@ -133,11 +152,12 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                 raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
-        print('got', f'::{checker}::{code}::{some_hash}::', 'with sample for', method, path)
-        print()
+        # print('got', f'::{checker}::{code}::{some_hash}::', 'with sample for', method, path)
+        # print()
         yield ErrorBucket(
             c=code,
             bkt=some_hash,
+            # This is already BUGBUCK NOTE compliant.
             rrz=[Err(
                 c=code,
                 bkt=some_hash,
@@ -179,6 +199,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('-r', '--rlr-wrk', default='.', help='Restler wrk-dir as base path for its data to read.')
     ap.add_argument('-o', '--out-report', default=None, help='Output report file')
+    ap.add_argument('-s', '--summary', default=None, help='Summary-samples file')
     # ap.add_argument('--hack-upload-report-to')
     # ap.add_argument('--hack-upload-report-for')
     ap.add_argument('-n', '--dry-run', default=False, action='store_true')
@@ -219,16 +240,18 @@ if __name__ == '__main__':
 
     print(f'-- Mining at {args.rlr_wrk}')
 
-    # ResponseBuckets contains a run summary, which bucketizes the responses
-    #   by error code and message (if Restler.ResultsAnalyzer not failed).
-    #   This is a basis for an optional summary.
-    if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
-        # print('J', end=' ')
-        with open(p) as fo:
-            jfo = json.load(fo)
-            # print(len(str(jfo)), end=' ')
-            ebc = ebkt_collection_from_errbuckets_json(jfo)
-        print('[DEBUG]', f'Loaded ResponseBuckets from {p.name}')
+    ebc = list()
+
+    # # ResponseBuckets contains a run summary, which bucketizes the responses
+    # #   by error code and message (if Restler.ResultsAnalyzer not failed).
+    # #   This is a basis for an optional summary.
+    # if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
+    #     # print('J', end=' ')
+    #     with open(p) as fo:
+    #         jfo = json.load(fo)
+    #         # print(len(str(jfo)), end=' ')
+    #         ebc = ebkt_collection_from_errbuckets_json(jfo)
+    #     print(f'Loaded ResponseBuckets from {p.name}')
 
     # Collect individual bug buckets created for each bug found.
     #   This is a basis for the main report.
@@ -238,7 +261,11 @@ if __name__ == '__main__':
             jfo = json.load(fo)
             # print(len(str(jfo)), end=' ')
             ebc = ebkt_collection_from_bugbuckets_txts(jfo, p.parent)
-        print('[DEBUG]', f'Loaded bug_buckets from {p.name}')
+        print(f'Loaded bug_buckets from {p.name}')
+
+    import re
+    datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( GMT)')
+    errs_for_summary = list()
 
     for eb in ebc:
         report['site'][0]['alerts'].append(
@@ -278,15 +305,42 @@ if __name__ == '__main__':
                 'sourceid': '',
             }
         )
+        # Normalize for further grouping
+        from dataclasses import asdict
+        e2 = Err(**asdict(eb.rrz[-1]))
+        e2.res.content = datep.sub(r'\1HH:MM:SS\3', e2.res.content)
+        errs_for_summary.append(e2)
+
+    # Generate our own summary-samples.
+    from itertools import groupby
+    samples = list()
+    errs_for_summary.sort(key=lambda e: e.res.content)
+    for response_body, err_grp in groupby(errs_for_summary, key=lambda e: e.res.content):
+        samples.append(
+            (
+                [e.qry for e in err_grp],
+                response_body
+            )
+        )
+    print(f'  {len(errs_for_summary)} Err(s)  ->  {len(samples)} group(s)'
+          f'  with items:  {", ".join(map(str, (len(q) for q, r in samples)))}')
 
     ## --------------------------------------------------------------------
 
-    if args.dry_run or args.out_report is None: 
-        print(json.dumps(report, indent=4, ensure_ascii=False), file=sys.stderr)
+    if args.dry_run or (args.out_report is None and args.summary is None): 
         sys.exit()
 
-    with open(args.out_report, 'w') as fo:
-        json.dump(report, fo, indent=4, ensure_ascii=False)
+    if args.out_report:
+        with open(args.out_report, 'w') as fo:
+            json.dump(report, fo, indent=4, ensure_ascii=False)
+
+    if args.summary:
+        with open(args.summary, 'w') as fo:
+            for z, r in samples:
+                fo.write('\n' + '-' * 79 + '\n\n')
+                fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in z)))
+                fo.write(f'\n\n{z[0].query}\n{z[0].body}\n')
+                fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
 
     # if args.hack_upload_report_to and args.hack_upload_report_for:
     #     subprocess.run(
