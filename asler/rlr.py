@@ -190,7 +190,7 @@ if __name__ == '__main__':
     from datetime import datetime
     from pathlib import Path
 
-    sys.path.insert(1, str(Path(Path.home(), 'd1/src/dyna-misc').expanduser()))
+    sys.path.insert(1, str(Path(Path.home(), '/opt/d1/src/dyna-misc').expanduser()))
 
     from zreprt import ZapReport
 

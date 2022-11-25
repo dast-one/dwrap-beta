@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 import jsonschema
 
-from rlr import ErrorBucket, eb_collection
+from rlr import ebkt_collection_from_bugbuckets_txts as eb_collection
 
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
