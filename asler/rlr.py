@@ -190,7 +190,7 @@ if __name__ == '__main__':
     from datetime import datetime
     from pathlib import Path
 
-    sys.path.insert(1, str(Path(Path.home(), 'd1/src/dyna-misc').expanduser()))
+    sys.path.insert(1, str(Path(Path.home(), '/opt/d1/src/dyna-misc').expanduser()))
 
     from zreprt import ZapReport
 
@@ -263,7 +263,8 @@ if __name__ == '__main__':
         print(f'Loaded bug_buckets from {p.name}')
 
     import re
-    datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( GMT)')
+    # datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( GMT)')
+    datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
     errs_for_summary = list()
 
     for eb in ebc:
