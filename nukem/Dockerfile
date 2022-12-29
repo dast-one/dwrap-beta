@@ -5,11 +5,9 @@ RUN apk add --update --no-cache \
   && ln -sf python3 /usr/bin/python \
   && python3 -m ensurepip \
   && pip3 install --no-cache-dir --upgrade pip setuptools \
-    jsonschema \
-    dateutils psycopg2 sqlalchemy
+    jsonschema
 
 COPY ./nuclei-jockey.py /usr/local/bin/nuclei-jockey
-# COPY ./.env ./zreprt-pgup.py /usr/local/bin/
 
 ENV PYTHONUNBUFFERED=1
 
