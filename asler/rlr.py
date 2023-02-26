@@ -1,7 +1,12 @@
 import re
-from dataclasses import field
+from dataclasses import asdict, field
+# from datetime import datetime
+from itertools import groupby
+from pathlib import Path
 
 from pydantic.dataclasses import dataclass
+
+from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
 
 
 @dataclass
@@ -23,7 +28,8 @@ class ResponseData:
     isBug: bool | None
 
     def __post_init__(self):
-        # code: str to non negative integer (negative result is a sign of an error)
+        # Since `code` should be a non-negative integer,
+        # we use negative result to indicate an error.
         try:
             self.code = int(self.code)
         except ValueError:
@@ -39,12 +45,12 @@ class Err:
     bkt: str
     qry: RequestData
     res: ResponseData
-    # 
+
     def is_consistent(self) -> bool:
         return (
             self.c == str(self.res.code),
         )
-    #
+
     def risk_value(self):
         """Returns riskcode in terms of ZAP."""
         if self.res.isBug:
@@ -57,28 +63,26 @@ class Err:
 
 @dataclass
 class ErrorBucket:
-    """...
-    """
+    """..."""
     c: str
     bkt: str
     rrz: list[Err] = field(default_factory=list)
-    #
-    checker: str|None = None
-    checker_tag: str|None = None
-    checker_data: str|None = None
-    #
+    checker: str | None = None
+    checker_tag: str | None = None
+    checker_data: str | None = None
+
     def is_consistent(self) -> bool:
         return (
             all(all(rr.is_consistent()) for rr in self.rrz),
         )
-    #
+
     def risk_value(self):
         """Returns riskcode in terms of ZAP."""
         return max(map(Err.risk_value, self.rrz))
 
 
-def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
-    """errorBuckets.json contents -> collection of buckets"""
+def collect_errbuckets(jfo) -> list[ErrorBucket]:
+    """errorBuckets.json contents -> collection of errbuckets"""
     for c, bkts in jfo.items():
         # print('----', f'code-group: {c}', f'{len(bkts)} bucket(s) here', sep='\t')
         for b, rrz in bkts.items():
@@ -98,14 +102,13 @@ def ebkt_collection_from_errbuckets_json(jfo) -> list[ErrorBucket]:
             )
 
 
-def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
-    """experiment/bug_buckets/* -> collection of buckets
+def collect_bugbuckets(jfo, bp) -> list[ErrorBucket]:
+    """experiment/bug_buckets/* -> collection of bugbuckets
 
     NOTE: BUGBUCK
     _Bug-Bucket_ term here should be reconsidered as a _sequence_
     as we encounter a file with more than one request marked `->`.
 
-    from pathlib import Path
     bp = Path('~/d1/deed').expanduser()
     for bbdir in bp.glob('**/bug_buckets'):
         print(f' -- {bbdir}')
@@ -116,26 +119,26 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
                     (line.startswith('->') for line in fo.readlines())
                 )))
             print('.' if n == 1 else n, end='')
-        print()    
+        print()
     """
-    # 
+
     def _get_checker_contents(text, p=re.compile(
-        r'#+?\n'                    # ###
-        r'\s*?(\S+?)(?:_(\d+))?\n'   # checker name, http code
-        r'(?:\s+(.+?)(?:\n(.+?))?\s+)?' # checker specific tag, data
+        r'#+?\n'                         #
+        r'\s*?(\S+?)(?:_(\d+))?\n'       # checker name, http code
+        r'(?:\s+(.+?)(?:\n(.+?))?\s+)?'  # checker specific tag, data
         r'\s*?Hash: \1(?:_\2)?_(\w+)\n'  # (bucket/checker?) hash
-        r'.*?'                      # ...
-        r'#+?\n'                    # ###
+        r'.*?'                           # ...
+        r'#+?\n'                         #
         r'\n'
-        r'-> ["\']?(\w+) (.*?) (HTTP/\S+.*?)["\']?\n' # method, path, request
-        r'(?:^!.*?\n)*?'            # engine/checker settings
-        r'PREVIOUS RESPONSE: .(.*?).\n' # response
+        r'-> ["\']?(\w+) (.*?) (HTTP/\S+.*?)["\']?\n'  # method, path, request
+        r'(?:^!.*?\n)*?'                 # engine/checker settings
+        r'PREVIOUS RESPONSE: .(.*?).\n'  # response
         # WARN: Single (first matched) request-response block supported.
         # TO BE REFACTORED as soon as BUGBUCK NOTE condition triggers
     , re.MULTILINE + re.DOTALL)):
         if m := p.match(text):
             return m.groups()
-    # 
+
     for bx, fref in jfo.items():
         # print('---- from', fref['file_path'])
         with open(Path(bp, fref['file_path'])) as fo:
@@ -182,162 +185,212 @@ def ebkt_collection_from_bugbuckets_txts(jfo, bp) -> list[ErrorBucket]:
         )
 
 
-if __name__ == '__main__':
+def zreprt_the_result(rlr_cfg, ebc):
+    """Returns ZAP-like report for given Restler config and collection
+    of Err-like objects.
 
-    import argparse
-    import json
-    import sys
-    from datetime import datetime
-    from pathlib import Path
-
-    sys.path.insert(1, str(Path(Path.home(), '/opt/d1/src/dyna-misc').expanduser()))
-
-    from zreprt import ZapReport
-
-
-    ap = argparse.ArgumentParser()
-    ap.add_argument('-r', '--rlr-wrk', default='.', help='Restler wrk-dir as base path for its data to read.')
-    ap.add_argument('-o', '--out-report', default=None, help='Output report file')
-    ap.add_argument('-s', '--summary', default=None, help='Summary-samples file')
-    # ap.add_argument('--hack-upload-report-to')
-    # ap.add_argument('--hack-upload-report-for')
-    ap.add_argument('-n', '--dry-run', default=False, action='store_true')
-    # ap.add_argument('--skip_errbuckets_json', default=False, action='store_true')
-    args = ap.parse_args()
-
-    rlr_cfg = {
-        'host': None,
-        'no_ssl': False,
-        'target_port': -1,
-        'basepath': '',
-    }
-    with open(Path(args.rlr_wrk, 'Compile/engine_settings.json')) as fo:
-        rlr_cfg.update(json.load(fo))
-
-
-    ## --------------------------------------------------------------------
-    ## -- Zap-format the result
-
+    WARN: Written for collect_bugbuckets() output.
+    """
     whether_default_port_configured = (
         rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 80
         or not rlr_cfg['no_ssl'] and rlr_cfg['target_port'] == 443
     )
-    report = {
-        '@version': 'x3',
-        '@generated': datetime.now().ctime(),
-        'site': [{
-            '@name': f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
+
+    zr = ZapReport(
+        # version='x3',
+        # generated_ts=datetime.now().ctime(),
+        site=[ZapSite(
+            name=f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
                      f"{rlr_cfg['host'] or '...'}"
                      f"{'' if (whether_default_port_configured) else ':' + str(rlr_cfg['target_port'])}"
                      f"/{rlr_cfg['basepath'].strip('/')}",
-            '@host': rlr_cfg['host'],
-            '@port': str(rlr_cfg['target_port']),
-            '@ssl': str(not rlr_cfg['no_ssl']),
-            'alerts': list(),
-        }]
-    }
+            host=rlr_cfg['host'],
+            port=str(rlr_cfg['target_port']),
+            ssl=str(not rlr_cfg['no_ssl']),
+            alerts=list(),
+        )]
+    )
 
-    print(f'-- Mining at {args.rlr_wrk}')
+    alert_template = ZapAlertInfo(
+        pluginid=-9,
+        riskcode=2,
+        confidence=2,
+        instances=list(),
+        alertref='', alert='', name='', riskdesc='', description='', solution='',
+        otherinfo='', reference='', cweid='', wascid='', sourceid='',
+    )
 
-    ebc = list()
+    alert_instance_template = ZapAlertInstance(
+        uri='', method='', param='', attack='', evidence='',
+        request_header='', request_body='', response_header='', response_body='',
+    )
 
-    # # ResponseBuckets contains a run summary, which bucketizes the responses
-    # #   by error code and message (if Restler.ResultsAnalyzer not failed).
-    # #   This is a basis for an optional summary.
-    # if (p := Path(args.rlr_wrk, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
-    #     # print('J', end=' ')
-    #     with open(p) as fo:
-    #         jfo = json.load(fo)
-    #         # print(len(str(jfo)), end=' ')
-    #         ebc = ebkt_collection_from_errbuckets_json(jfo)
-    #     print(f'Loaded ResponseBuckets from {p.name}')
-
-    # Collect individual bug buckets created for each bug found.
-    #   This is a basis for the main report.
-    if (p := Path(next(Path(args.rlr_wrk, 'FuzzLean/RestlerResults').glob('experiment*')), 'bug_buckets/bug_buckets.json')).is_file():
-        # print('T', end=' ')
-        with open(p) as fo:
-            jfo = json.load(fo)
-            # print(len(str(jfo)), end=' ')
-            ebc = ebkt_collection_from_bugbuckets_txts(jfo, p.parent)
-        print(f'Loaded bug_buckets from {p.name}')
-
-    import re
-    # datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( GMT)')
-    datep = re.compile(r'(Date: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
+    datep = re.compile(r'([Dd]ate: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
+    # klmnp = re.compile(r'^(.*?Нетипизированная ошибка.{33}).*$', re.M + re.S)
     errs_for_summary = list()
 
     for eb in ebc:
-        report['site'][0]['alerts'].append(
-            {
-                'pluginid': '-9',
-                'alertRef': f'{eb.c}-{eb.bkt}',
-                'alert': f'{eb.c}-{eb.bkt}',
-                'name': (
-                    ', '.join(sorted(set(rr.res.codeDescription for rr in eb.rrz)))
-                    + (' [fail]' if any(rr.res.isFailure for rr in eb.rrz) else '')
-                    + (' [bug]' if any(rr.res.isBug for rr in eb.rrz) else '')
-                ),
-                'riskcode': eb.risk_value(),
-                'confidence': '2',
-                'riskdesc': '',
-                'desc': '',
-                'instances': [
-                    {
-                        'uri': rr.qry.path,
-                        'method': rr.qry.method,
-                        'param': '',
-                        'attack': '',
-                        'evidence': '',
-                        'request-header': '',
-                        'request-body': rr.qry.body,
-                        'response-header': '',
-                        'response-body': rr.res.content,
-                    }
-                    for rr in eb.rrz
-                ],
-                'count': str(len(eb.rrz)),
-                'solution': '',
-                'otherinfo': '',
-                'reference': '',
-                'cweid': '',
-                'wascid': '',
-                'sourceid': '',
-            }
-        )
-        # Normalize for further grouping
-        from dataclasses import asdict
-        e2 = Err(**asdict(eb.rrz[-1]))
-        e2.res.content = datep.sub(r'\1HH:MM:SS\3', e2.res.content)
-        errs_for_summary.append(e2)
 
-    # Generate our own summary-samples.
-    from itertools import groupby
-    samples = list()
-    errs_for_summary.sort(key=lambda e: e.res.content)
-    for response_body, err_grp in groupby(errs_for_summary, key=lambda e: e.res.content):
-        samples.append(
+        ## Original raw report would be built like that
+        # zr.site[0].alerts.append(alert_template.copy(update={
+        #     'alertref': f'{eb.c}-{eb.bkt}',
+        #     'alert': f'{eb.c}-{eb.bkt}',
+        #     'name': (
+        #         ', '.join(sorted(set(rr.res.codeDescription for rr in eb.rrz)))
+        #         + (' [fail]' if any(rr.res.isFailure for rr in eb.rrz) else '')
+        #         + (' [bug]' if any(rr.res.isBug for rr in eb.rrz) else '')
+        #     ),
+        #     # 'riskcode': eb.risk_value(),
+        #     'instances': [
+        #         alert_instance_template.copy(update={
+        #             'uri': rr.qry.path,
+        #             'method': rr.qry.method,
+        #             'request_body': rr.qry.body,
+        #             'response_body': rr.res.content,
+        #         }) for rr in eb.rrz
+        #     ],
+        #     'count': len(eb.rrz),
+        # }))
+
+        # Normalize for further grouping
+        e2 = Err(**asdict(eb.rrz[-1]))
+        # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
+        normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
+        # normalized_res_content = klmnp.sub(r'\1', normalized_res_content)
+        errs_for_summary.append(
             (
-                [e.qry for e in err_grp],
-                response_body
+                e2,
+                {
+                    'nrc': normalized_res_content,
+                    'checker': eb.checker,
+                    'checker_tag': eb.checker_tag,
+                    'checker_data': eb.checker_data,
+                }
             )
         )
+
+    # Generate our own summary-samples.
+    samples = list()
+    # kf = lambda e: (e[0].res.content, e[0].c, e[1]['checker'])
+    kf = lambda e: (e[1]['nrc'], e[0].c, e[1]['checker'])
+    errs_for_summary.sort(key=kf)
+    for (_, response_code, checker), err_grp in groupby(errs_for_summary, key=kf):
+        err_grp = list(err_grp)
+        samples.append(
+            (
+                [e[0].qry for e in err_grp],
+                err_grp[-1][0].res.content,
+                response_code,
+                checker,
+            )
+        )
+
     print(f'  {len(errs_for_summary)} Err(s)  ->  {len(samples)} group(s)'
-          f'  with items:  {", ".join(map(str, (len(q) for q, r in samples)))}')
+          f'  with items:  {", ".join(map(str, (len(q) for q, r, c, ch in samples)))}')
 
-    ## --------------------------------------------------------------------
+    for qz, r, c, ch in samples:
+        issue_locations = sorted(set(
+            (q.method, q.path[:q.path.find("?") if q.path.find("?") > 0 else None])
+            for q in qz
+        ))
+        zr.site[0].alerts.append(alert_template.copy(update={
+            'alertref': f'{c}-{ch}',
+            'alert': f'{c}-{ch}',
+            'name': f'{c}-{ch}', # TODO
+            # 'riskcode': # TODO, eb.risk_value(),
+            'instances': [
+                # First fake instance with request-response
+                alert_instance_template.copy(update={
+                    'uri': '(SAMPLE)',
+                    # 'method': '__',
+                    'request_body': f'{qz[0].query}\n{qz[0].body}\n',
+                    'response_body': r,
+                }),
+            ] + [
+                # List where such issues found
+                alert_instance_template.copy(update={
+                    'uri': p,
+                    'method': m,
+                }) for (m, p) in issue_locations
+            ],
+            'count': len(issue_locations),
+        }))
 
-    if args.dry_run or (args.out_report is None and args.summary is None): 
-        sys.exit()
+    return (samples, zr)
 
-    if args.out_report:
+
+if __name__ == '__main__':
+    import argparse
+    import json
+    import sys
+
+    ap = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument('rlr_wrk', default=['.',], nargs='*',
+        help='''Restler wrk-dir as base path for its data to read.
+            Set multiple times to gather data from several directories.
+            Defaults to the current working dir.''')
+    ap.add_argument('-m', '--rlr-mode', default='FuzzLean',
+        choices=['Test', 'FuzzLean', 'Fuzz'],
+        help='''Restler job sub-directory, named afer scan mode used.
+             By default "FuzzLean" is looked under each wrk-dir.''')
+    ap.add_argument('-o', '--out-report', default=None,
+        help='Output report JSON file.')
+    ap.add_argument('-s', '--summary', default=None,
+        help='Summary-samples TXT file.')
+    ap.add_argument('-n', '--dry-run', default=False, action='store_true',
+        help='Do not write output files even those are set.')
+    # ap.add_argument('--skip_errbuckets_json', default=False, action='store_true')
+    args = ap.parse_args()
+
+    ebc = list()
+
+    for rlr_base_path in args.rlr_wrk:
+        rlr_cfg = {
+            'host': None,
+            'no_ssl': False,
+            'target_port': -1,
+            'basepath': '',
+        }
+
+        with open(Path(rlr_base_path, 'Compile/engine_settings.json')) as fo:
+            rlr_cfg.update(json.load(fo))
+
+        print(f'-- Mining at {rlr_base_path}')
+
+        # # ResponseBuckets contains a run summary, which bucketizes the responses
+        # #   by error code and message (if Restler.ResultsAnalyzer not failed).
+        # #   This is a basis for an optional summary.
+        # if (p := Path(rlr_base_path, 'FuzzLean/ResponseBuckets/errorBuckets.json')).is_file():
+        #     # print('J', end=' ')
+        #     with open(p) as fo:
+        #         jfo = json.load(fo)
+        #         # print(len(str(jfo)), end=' ')
+        #         ebc = collect_errbuckets(jfo)
+        #     print(f'Loaded ResponseBuckets from {p.name}')
+
+        # Collect individual bug buckets created for each bug found.
+        #   This is a basis for the main report.
+        if (p := Path(next(Path(rlr_base_path, args.rlr_mode, 'RestlerResults').glob('experiment*'), '.'),
+                      'bug_buckets/bug_buckets.json')).is_file():
+            # print('T', end=' ')
+            with open(p) as fo:
+                jfo = json.load(fo)
+                # print(len(str(jfo)), end=' ')
+                # ebc = collect_bugbuckets(jfo, p.parent)
+                ebc.extend(collect_bugbuckets(jfo, p.parent))
+            print(f'Processing bug_buckets from `{p}`')
+
+    (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
+
+    if args.out_report and not args.dry_run:
         with open(args.out_report, 'w') as fo:
-            json.dump(report, fo, indent=4, ensure_ascii=False)
+            json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
 
-    if args.summary:
+    if args.summary and not args.dry_run:
         with open(args.summary, 'w') as fo:
-            for z, r in samples:
+            for qz, r, c, ch in samples:
                 fo.write('\n' + '-' * 79 + '\n\n')
-                fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in z)))
-                fo.write(f'\n\n{z[0].query}\n{z[0].body}\n')
+                fo.write(f'Response: {c}\nChecker: {ch}\n\n')
+                fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
+                fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
                 fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
