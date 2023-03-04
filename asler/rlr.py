@@ -370,8 +370,11 @@ if __name__ == '__main__':
 
         # Collect individual bug buckets created for each bug found.
         #   This is a basis for the main report.
-        if (p := Path(next(Path(rlr_base_path, args.rlr_mode, 'RestlerResults').glob('experiment*'), '.'),
-                      'bug_buckets/bug_buckets.json')).is_file():
+        if (
+            (p := Path(next(Path(rlr_base_path, args.rlr_mode, 'RestlerResults').glob('experiment*'), '.'),
+                       'bug_buckets/bug_buckets.json')).is_file()
+            or (p := Path(rlr_base_path, args.rlr_mode, 'RestlerResults/bug_buckets/bug_buckets.json')).is_file()
+        ):
             # print('T', end=' ')
             with open(p) as fo:
                 jfo = json.load(fo)

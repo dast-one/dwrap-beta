@@ -109,6 +109,7 @@ rlr_cfg.update({
     'include_user_agent': False,
     'disable_cert_validation': True,
     'ignore_decoding_failures': True,
+    'save_results_in_fixed_dirname': True,  # Skip the 'experiment<pid>' subdir, default False.
 })
 
 rlr_cfg.update({
@@ -136,17 +137,15 @@ if cfg['headers']:
         'token_refresh_interval': args.token_refresh_interval,
     })
 
-'''
-exclude_requests: list (default empty list=No filtering)
-    # "exclude_requests": [
-    #     {
-    #         "endpoint": "/api/blog/posts/{postId}",
-    #         "methods": ["GET", "DELETE"]
-    #     }
-    # ]
-
-save_results_in_fixed_dirname: bool (default False, ??, "skip the 'experiment<pid>' subdir")
-'''
+#
+# exclude_requests: list (default empty list=No filtering)
+#     # "exclude_requests": [
+#     #     {
+#     #         "endpoint": "/api/blog/posts/{postId}",
+#     #         "methods": ["GET", "DELETE"]
+#     #     }
+#     # ]
+#
 
 with open(Path(args.out_dir, 'Compile/engine_settings.json'), 'w') as fo:
     json.dump(rlr_cfg, fo, indent=4)
@@ -187,15 +186,13 @@ rlr_jobdir = {
     'full': 'Fuzz',
 }.get(args.aggressiveness, '')
 
-rlr_jobdir = {'test': 'Test', 'lite': 'FuzzLean', 'full': 'Fuzz'}.get(args.aggressiveness, '')
-if (p := Path(next(Path(rlr_jobdir, 'RestlerResults').glob('experiment*'), '.'),
-              'bug_buckets/bug_buckets.json')).is_file():
+if (p := Path(args.out_dir, rlr_jobdir, 'RestlerResults/bug_buckets/bug_buckets.json')).is_file():
     with open(p) as fo:
         jfo = json.load(fo)
         ebc = collect_bugbuckets(jfo, p.parent)
     print(f'Processing bug_buckets from `{p}`')
 else:
-    sys.exit(f'No Restler output data found under `{rlr_jobdir}/RestlerResults/experiment*/bug_buckets`.')
+    sys.exit(f'No Restler output data found (`{p}`).')
 
 (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
 
