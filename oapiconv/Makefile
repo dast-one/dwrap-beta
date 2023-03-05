@@ -1,4 +1,4 @@
-TARGET_NAME := dast.zedan
+TARGET_NAME := dast.oapiconv
 
 DKR_BLD_ADDITIONALS := --pull
 

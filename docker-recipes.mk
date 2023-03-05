@@ -2,10 +2,10 @@ ifndef TAG
 TAG := git-$(shell git rev-parse --short HEAD)
 endif
 
-DOCKER_IMAGE := ${TARGET_NAME}:latest
-ifndef DOCKER_IMAGE
-$(error DOCKER_IMAGE is not set; _x3_ what's being built.)
+ifndef TARGET_NAME
+$(error TARGET_NAME is not set; _x3_ what's being built.)
 endif
+DOCKER_IMAGE := ${TARGET_NAME}:latest
 
 .DEFAULT_GOAL := express-build
 
@@ -26,8 +26,16 @@ endif
 
 .PHONY: dump
 dump:
-	docker save ${DOCKER_IMAGE} | xz -eT0 > "${TARGET_NAME}.txz"
+	docker save ${DOCKER_IMAGE} | xz -T0 > "${TARGET_NAME}.txz"
+	sha256sum "${TARGET_NAME}.txz" > "${TARGET_NAME}.sha256"
+ifdef SCP_TO
+	scp "${TARGET_NAME}.txz" "${TARGET_NAME}.sha256" "${SCP_TO}"
+	rm "${TARGET_NAME}.txz" "${TARGET_NAME}.sha256"
+endif
+
+.PHONY: scramble
+scramble:
 	openssl enc -aes-256-cbc -pbkdf2 -nosalt -pass 'pass:typoscramble'  \
 	  -in "${TARGET_NAME}.txz" -out "${TARGET_NAME}.txz.ebin"
-	sha256sum "${TARGET_NAME}.txz" "${TARGET_NAME}.txz.ebin" > "${TARGET_NAME}.sha256"
+	sha256sum "${TARGET_NAME}.txz.ebin" >> "${TARGET_NAME}.sha256"
 	rm "${TARGET_NAME}.txz"
