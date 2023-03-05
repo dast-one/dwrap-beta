@@ -93,7 +93,7 @@ def u2r(url):
 # Output (reports) will go there.
 Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
-# Compile the spec, alse prepare engine_settings.
+# Compile the spec, also prepare engine_settings.
 if not args.skip_compile:
     subprocess.run([
         '/RESTler/restler/Restler'
@@ -131,7 +131,7 @@ if cfg['headers']:
             ]
             + [f"echo '{h}: {v}'\n" for (h, v) in cfg['headers']]
         )
-    tknr.chmod(tknr.stat().st_mode | 0o111) # like chmod +x
+    tknr.chmod(tknr.stat().st_mode | 0o111)  # Like `chmod +x`.
     rlr_cfg.update({
         'token_refresh_cmd': tknr.resolve().as_posix(),
         'token_refresh_interval': args.token_refresh_interval,

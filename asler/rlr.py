@@ -133,8 +133,8 @@ def collect_bugbuckets(jfo, bp) -> list[ErrorBucket]:
         r'-> ["\']?(\w+) (.*?) (HTTP/\S+.*?)["\']?\n'  # method, path, request
         r'(?:^!.*?\n)*?'                 # engine/checker settings
         r'PREVIOUS RESPONSE: .(.*?).\n'  # response
-        # WARN: Single (first matched) request-response block supported.
-        # TO BE REFACTORED as soon as BUGBUCK NOTE condition triggers
+        # WARN: Single (first matched) request-response block supported;
+        # TO BE REFACTORED as soon as BUGBUCK NOTE condition triggers.
     , re.MULTILINE + re.DOTALL)):
         if m := p.match(text):
             return m.groups()
@@ -186,8 +186,8 @@ def collect_bugbuckets(jfo, bp) -> list[ErrorBucket]:
 
 
 def zreprt_the_result(rlr_cfg, ebc):
-    """Returns ZAP-like report for given Restler config and collection
-    of Err-like objects.
+    """Returns ZAP-like report for given
+    Restler config and collection of Err-like objects.
 
     WARN: Written for collect_bugbuckets() output.
     """
@@ -231,7 +231,7 @@ def zreprt_the_result(rlr_cfg, ebc):
 
     for eb in ebc:
 
-        ## Original raw report would be built like that
+        ## Original raw report would be built like that.
         # zr.site[0].alerts.append(alert_template.copy(update={
         #     'alertref': f'{eb.c}-{eb.bkt}',
         #     'alert': f'{eb.c}-{eb.bkt}',
@@ -252,7 +252,7 @@ def zreprt_the_result(rlr_cfg, ebc):
         #     'count': len(eb.rrz),
         # }))
 
-        # Normalize for further grouping
+        # Normalize for further grouping.
         e2 = Err(**asdict(eb.rrz[-1]))
         # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
@@ -296,10 +296,10 @@ def zreprt_the_result(rlr_cfg, ebc):
         zr.site[0].alerts.append(alert_template.copy(update={
             'alertref': f'{c}-{ch}',
             'alert': f'{c}-{ch}',
-            'name': f'{c}-{ch}', # TODO
-            # 'riskcode': # TODO, eb.risk_value(),
+            'name': f'{c}-{ch}',  # TODO
+            # 'riskcode':  # TODO, eb.risk_value(),
             'instances': [
-                # First fake instance with request-response
+                # First fake instance with request-response.
                 alert_instance_template.copy(update={
                     'uri': '(SAMPLE)',
                     # 'method': '__',
@@ -307,7 +307,7 @@ def zreprt_the_result(rlr_cfg, ebc):
                     'response_body': r,
                 }),
             ] + [
-                # List where such issues found
+                # List where such issues found.
                 alert_instance_template.copy(update={
                     'uri': p,
                     'method': m,
@@ -368,8 +368,8 @@ if __name__ == '__main__':
         #         ebc = collect_errbuckets(jfo)
         #     print(f'Loaded ResponseBuckets from {p.name}')
 
-        # Collect individual bug buckets created for each bug found.
-        #   This is a basis for the main report.
+        # Collect individual bug buckets created for each bug found;
+        # this is a basis for the main report.
         if (
             (p := Path(next(Path(rlr_base_path, args.rlr_mode, 'RestlerResults').glob('experiment*'), '.'),
                        'bug_buckets/bug_buckets.json')).is_file()
