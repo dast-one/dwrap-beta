@@ -3,5 +3,3 @@
 # except required
 !zap-jockey.py
 !templates-zap
-!zreprt-pgup.py
-!.env

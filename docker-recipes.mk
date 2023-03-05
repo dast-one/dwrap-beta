@@ -1,4 +1,6 @@
+ifndef TAG
 TAG := git-$(shell git rev-parse --short HEAD)
+endif
 
 DOCKER_IMAGE := ${TARGET_NAME}:latest
 ifndef DOCKER_IMAGE
@@ -16,7 +18,8 @@ express-build:
 .PHONY: full
 full:
 	@echo "[make]  ---- full-build ----"
-	docker build --pull --no-cache -t ${DOCKER_IMAGE} .
+# 	docker build --pull --no-cache -t ${DOCKER_IMAGE} .
+	docker build --no-cache ${DKR_BLD_ADDITIONALS} -t ${DOCKER_IMAGE} .
 ifdef TAG
 	docker tag ${DOCKER_IMAGE} ${TARGET_NAME}:${TAG}
 endif

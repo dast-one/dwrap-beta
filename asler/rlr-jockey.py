@@ -2,17 +2,20 @@
 
 import argparse
 import json
+import re
 import shlex
 import socket
 import subprocess
 import sys
+from dataclasses import asdict
 from datetime import datetime
+from itertools import groupby
 from pathlib import Path
 from urllib.parse import urlparse
 
 import jsonschema
 
-from rlr import ebkt_collection_from_bugbuckets_txts as eb_collection
+from rlr import collect_bugbuckets, zreprt_the_result
 
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
@@ -52,7 +55,7 @@ action_grp.add_argument('-a', '--aggressiveness', '--action',
 args = ap.parse_args()
 
 if args.scan_request_from_file is None:
-    # Parse STDIN data
+    # Parse STDIN data.
     try:
         cfg = json.load(sys.stdin)
         jsonschema.validate(cfg, schema=SCAN_REQUEST_SCH)
@@ -87,11 +90,10 @@ def u2r(url):
     }
 
 
-# Output (reports) will go there
+# Output (reports) will go there.
 Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
-
-## Compile the spec, alse prepare engine_settings
+# Compile the spec, also prepare engine_settings.
 if not args.skip_compile:
     subprocess.run([
         '/RESTler/restler/Restler'
@@ -99,7 +101,7 @@ if not args.skip_compile:
         , '--api_spec', cfg['oas']['file']
     ], cwd=args.out_dir)
 
-## Update the config (engine_settings.json)
+# Update the config (engine_settings.json).
 with open(Path(args.out_dir, 'Compile/engine_settings.json')) as fo:
     rlr_cfg = json.load(fo)
 
@@ -107,6 +109,7 @@ rlr_cfg.update({
     'include_user_agent': False,
     'disable_cert_validation': True,
     'ignore_decoding_failures': True,
+    'save_results_in_fixed_dirname': True,  # Skip the 'experiment<pid>' subdir, default False.
 })
 
 rlr_cfg.update({
@@ -128,31 +131,28 @@ if cfg['headers']:
             ]
             + [f"echo '{h}: {v}'\n" for (h, v) in cfg['headers']]
         )
-    tknr.chmod(tknr.stat().st_mode | 0o111) # like chmod +x
+    tknr.chmod(tknr.stat().st_mode | 0o111)  # Like `chmod +x`.
     rlr_cfg.update({
         'token_refresh_cmd': tknr.resolve().as_posix(),
         'token_refresh_interval': args.token_refresh_interval,
     })
 
-'''
-exclude_requests: list (default empty list=No filtering)
-    # "exclude_requests": [
-    #     {
-    #         "endpoint": "/api/blog/posts/{postId}",
-    #         "methods": ["GET", "DELETE"]
-    #     }
-    # ]
-
-save_results_in_fixed_dirname: bool (default False, ??, "skip the 'experiment<pid>' subdir")
-'''
+#
+# exclude_requests: list (default empty list=No filtering)
+#     # "exclude_requests": [
+#     #     {
+#     #         "endpoint": "/api/blog/posts/{postId}",
+#     #         "methods": ["GET", "DELETE"]
+#     #     }
+#     # ]
+#
 
 with open(Path(args.out_dir, 'Compile/engine_settings.json'), 'w') as fo:
     json.dump(rlr_cfg, fo, indent=4)
 
-
-# The action
 if args.dry_run or args.aggressiveness == 'dry':
     sys.exit(0)
+
 if not args.dry_run and args.aggressiveness in ['test', 'lite', 'full']:
     subprocess.run([
         '/RESTler/restler/Restler'
@@ -161,6 +161,7 @@ if not args.dry_run and args.aggressiveness in ['test', 'lite', 'full']:
         , '--dictionary_file', 'Compile/dict.json'
         , '--settings', 'Compile/engine_settings.json'
     ], cwd=args.out_dir)
+
 if not args.dry_run and args.aggressiveness == 'lite':
     subprocess.run([
         '/RESTler/restler/Restler'
@@ -169,6 +170,7 @@ if not args.dry_run and args.aggressiveness == 'lite':
         , '--dictionary_file', 'Compile/dict.json'
         , '--settings', 'Compile/engine_settings.json'
     ], cwd=args.out_dir)
+
 if not args.dry_run and args.aggressiveness == 'full':
     subprocess.run([
         '/RESTler/restler/Restler'
@@ -178,69 +180,29 @@ if not args.dry_run and args.aggressiveness == 'full':
         , '--settings', 'Compile/engine_settings.json'
     ], cwd=args.out_dir)
 
+rlr_jobdir = {
+    'test': 'Test',
+    'lite': 'FuzzLean',
+    'full': 'Fuzz',
+}.get(args.aggressiveness, '')
 
-## --------------------------------------------------------------------
-## -- Zap-format the result
+if (p := Path(args.out_dir, rlr_jobdir, 'RestlerResults/bug_buckets/bug_buckets.json')).is_file():
+    with open(p) as fo:
+        jfo = json.load(fo)
+        ebc = collect_bugbuckets(jfo, p.parent)
+    print(f'Processing bug_buckets from `{p}`')
+else:
+    sys.exit(f'No Restler output data found (`{p}`).')
 
-report = {
-    '@version': 'x3',
-    '@generated': datetime.now().ctime(),
-    'site': [{
-        '@name': cfg['endpoints'][0],
-        '@host': rlr_cfg['host'] or rlr_cfg['target_ip'],
-        '@port': str(rlr_cfg['target_port']),
-        '@ssl': str(not rlr_cfg['no_ssl']),
-        'alerts': list(),
-    }]
-}
+(samples, zr) = zreprt_the_result(rlr_cfg, ebc)
 
-with open(Path(args.out_dir, 'FuzzLean/ResponseBuckets/errorBuckets.json')) as fo:
-    jfo = json.load(fo)
+with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
+    for qz, r, c, ch in samples:
+        fo.write('\n' + '-' * 79 + '\n\n')
+        fo.write(f'Response: {c}\nChecker: {ch}\n\n')
+        fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
+        fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
+        fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
 
-for eb in eb_collection(jfo):
-    report['site'][0]['alerts'].append(
-        {
-            'pluginid': '-9',
-            'alertRef': f'{eb.c}-{eb.bkt}',
-            'alert': f'{eb.c}-{eb.bkt}',
-            'name': (
-                ', '.join(sorted(set(rr.res.codeDescription for rr in eb.rrz)))
-                + (' [fail]' if any(rr.res.isFailure for rr in eb.rrz) else '')
-                + (' [bug]' if any(rr.res.isBug for rr in eb.rrz) else '')
-            ),
-            'riskcode': eb.risk_value(),
-            'confidence': '1',
-            'riskdesc': '',
-            'desc': '',
-            'instances': [
-                {
-                    'uri': rr.qry.path,
-                    'method': rr.qry.method,
-                    'param': '',
-                    'attack': '',
-                    'evidence': '',
-                    'request-header': '',
-                    'request-body': rr.qry.body,
-                    'response-header': '',
-                    'response-body': rr.res.content,
-                }
-                for rr in eb.rrz
-            ],
-            'count': str(len(eb.rrz)),
-            'solution': '',
-            'otherinfo': '',
-            'reference': '',
-            'cweid': '',
-            'wascid': '',
-            'sourceid': '',
-        }
-    )
-
-with open(Path(args.out_dir, args.reportfile), 'w') as fo:
-    json.dump(report, fo)
-
-if args.hack_upload_report_to and args.hack_upload_report_for:
-    subprocess.run(
-        shlex.split(f'/usr/local/bin/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
-        cwd='/usr/local/bin'
-    )
+with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
+    json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
