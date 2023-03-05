@@ -1,7 +1,7 @@
 FROM projectdiscovery/nuclei
 
 RUN apk add --update --no-cache \
-    python3 postgresql-dev gcc python3-dev musl-dev \
+    python3 \
   && ln -sf python3 /usr/bin/python \
   && python3 -m ensurepip \
   && pip3 install --no-cache-dir --upgrade pip setuptools \
