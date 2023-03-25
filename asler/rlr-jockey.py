@@ -2,14 +2,9 @@
 
 import argparse
 import json
-import re
-import shlex
 import socket
 import subprocess
 import sys
-from dataclasses import asdict
-from datetime import datetime
-from itertools import groupby
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -196,6 +191,7 @@ else:
 
 (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
 
+# Write the summary.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
     for qz, r, c, ch in samples:
         fo.write('\n' + '-' * 79 + '\n\n')
@@ -204,5 +200,6 @@ with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
         fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
         fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
 
+# Write the report.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
     json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)

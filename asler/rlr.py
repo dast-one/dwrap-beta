@@ -3,6 +3,7 @@ from dataclasses import asdict, field
 # from datetime import datetime
 from itertools import groupby
 from pathlib import Path
+from typing import Iterator
 
 from pydantic.dataclasses import dataclass
 
@@ -81,7 +82,7 @@ class ErrorBucket:
         return max(map(Err.risk_value, self.rrz))
 
 
-def collect_errbuckets(jfo) -> list[ErrorBucket]:
+def collect_errbuckets(jfo) -> Iterator[ErrorBucket]:
     """errorBuckets.json contents -> collection of errbuckets"""
     for c, bkts in jfo.items():
         # print('----', f'code-group: {c}', f'{len(bkts)} bucket(s) here', sep='\t')
