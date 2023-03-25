@@ -1,6 +1,6 @@
 import re
 from dataclasses import asdict, field
-# from datetime import datetime
+# from datetime import datetime, timezone
 from itertools import groupby
 from pathlib import Path
 from typing import Iterator
@@ -205,7 +205,7 @@ def zreprt_the_result(rlr_cfg, ebc):
 
     zr = ZapReport(
         # version='x3',
-        # generated_ts=datetime.now().ctime(),
+        # generated_ts=datetime.now(timezone.utc).isoformat(),
         site=[ZapSite(
             name=f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
                      f"{rlr_cfg['host'] or '...'}"

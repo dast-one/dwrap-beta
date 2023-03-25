@@ -6,7 +6,7 @@ import shlex
 import subprocess
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonschema
@@ -240,7 +240,7 @@ print('Tasks:', sm.list_tasks()['tasks'], sep='\n')
 
 report = {
     '@version': 'x3',
-    '@generated': datetime.now().ctime(),
+    '@generated': datetime.now(timezone.utc).isoformat(),
     'site': [{
         '@name': cfg['endpoints'][0],
         '@host': cfg['endpoints'][0],
