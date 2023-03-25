@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import shutil
 import socket
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -203,3 +205,17 @@ with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
 # Write the report.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
     json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
+
+# Archive some directories.
+for p in (
+    list()
+    + list(Path(args.out_dir).glob('*/RestlerResults/experiment*/bug_buckets'))
+    + list(Path(args.out_dir).glob('*/RestlerResults/bug_buckets'))
+    + list(Path(args.out_dir).glob('*/RestlerResults/experiment*/logs'))
+    + list(Path(args.out_dir).glob('*/RestlerResults/logs'))
+):
+    if p.is_dir():
+        with tarfile.open(p.with_suffix('.txz'), 'w:xz') as txz:
+            txz.add(p, arcname=p.name)
+        shutil.rmtree(p)
+        print(f'`{p}` moved to archive.')

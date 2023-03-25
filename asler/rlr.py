@@ -103,8 +103,10 @@ def collect_errbuckets(jfo) -> Iterator[ErrorBucket]:
             )
 
 
-def collect_bugbuckets(jfo, bp) -> list[ErrorBucket]:
-    """experiment/bug_buckets/* -> collection of bugbuckets
+def collect_bugbuckets(jfo, bp, archive=None) -> Iterator[ErrorBucket]:
+    """RestlerResults/[experiment...]/bug_buckets/* -> collection of ~~bugbuckets~~ errbuckets
+
+    TarFile is also accepted (then `bp` treated as base path inside the archive).
 
     NOTE: BUGBUCK
     _Bug-Bucket_ term here should be reconsidered as a _sequence_
@@ -142,18 +144,22 @@ def collect_bugbuckets(jfo, bp) -> list[ErrorBucket]:
 
     for bx, fref in jfo.items():
         # print('---- from', fref['file_path'])
-        with open(Path(bp, fref['file_path'])) as fo:
-            try:
-                (
-                    checker, code,
-                    checker_tag, checker_data,
-                    some_hash,
-                    method, path, request,
-                    response
-                ) = _get_checker_contents(fo.read())
-            except Exception as e:
-                print('Parser failed:', bx, fref, _get_checker_contents(fo.read()))
-                raise e
+        if archive:
+            bbdata = archive.extractfile(str(Path(bp, fref['file_path']))).read().decode()
+        else:
+            with open(Path(bp, fref['file_path'])) as fo:
+                bbdata = fo.read()
+        try:
+            (
+                checker, code,
+                checker_tag, checker_data,
+                some_hash,
+                method, path, request,
+                response
+            ) = _get_checker_contents(bbdata)
+        except Exception as e:
+            print('Parser failed:', bx, fref)
+            raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
         code = code or 0
@@ -324,6 +330,7 @@ if __name__ == '__main__':
     import argparse
     import json
     import sys
+    import tarfile
 
     ap = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     ap.add_argument('rlr_wrk', default=['.',], nargs='*',
@@ -383,6 +390,18 @@ if __name__ == '__main__':
                 # ebc = collect_bugbuckets(jfo, p.parent)
                 ebc.extend(collect_bugbuckets(jfo, p.parent))
             print(f'Processing bug_buckets from `{p}`')
+        elif (
+            (p := Path(next(Path(rlr_base_path, args.rlr_mode, 'RestlerResults').glob('experiment*'), '.'),
+                       'bug_buckets.txz')).is_file()
+            or (p := Path(rlr_base_path, args.rlr_mode, 'RestlerResults/bug_buckets.txz')).is_file()
+        ):
+            with tarfile.open(p, 'r:xz') as txz:
+                if (bbfile := next(filter(lambda tm: (Path(tm.name).name == 'bug_buckets.json'
+                                                      and tm.isfile()),
+                                          txz.getmembers()), None)):
+                    jfo = json.load(txz.extractfile(bbfile))
+                    ebc.extend(collect_bugbuckets(jfo, Path(bbfile.name).parent, archive=txz))
+                    print(f'Processing bug_buckets from `{p}:{bbfile.name}`')
 
     (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
 
