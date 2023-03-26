@@ -159,8 +159,6 @@ ap.add_argument('--reportfile', default='sq-report', help='Override report filen
 ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true', help='Do not actually run scan (useful for debugging)')
 ap.add_argument('-v', '--log-debug', '--log_debug', action='store_true', help='Be verbose (setLevel logging.DEBUG)')
 ap.add_argument('-t', '--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
-ap.add_argument('--hack-upload-report-to')
-ap.add_argument('--hack-upload-report-for')
 args = ap.parse_args()
 
 if args.log_debug:
@@ -303,10 +301,4 @@ for f in Path(args.out_dir, 'jy').glob('*.data.json'):
 
 with open(Path(args.out_dir, args.reportfile), 'w') as fo:
     json.dump(report, fo)
-
-if args.hack_upload_report_to and args.hack_upload_report_for:
-    subprocess.run(
-        shlex.split(f'/usr/share/sqlmap/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
-        cwd='/usr/share/sqlmap'
-    )
 

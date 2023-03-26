@@ -36,8 +36,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
 ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='rlr-report', help='Override report filename (without extension)')
-ap.add_argument('--hack-upload-report-to')
-ap.add_argument('--hack-upload-report-for')
 ap.add_argument('--skip-compile', action='store_true', default=False)
 ap.add_argument('--max_request_execution_time', type=int, default=6, help='(seconds) (ref: rlr engine settings)')
 ap.add_argument('--token_refresh_interval', type=int, default=86400, help='(seconds) (ref: rlr engine settings)')

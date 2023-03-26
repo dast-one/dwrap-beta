@@ -32,8 +32,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
 ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='nu-report', help='Override report filename (without extension)')
-ap.add_argument('--hack-upload-report-to')
-ap.add_argument('--hack-upload-report-for')
 args = ap.parse_args()
 
 if args.scan_request_from_file is None:
@@ -125,10 +123,4 @@ with open(Path(args.out_dir, args.reportfile).with_suffix('.nuorig')) as fo:
 
 with open(Path(args.out_dir, args.reportfile), 'w') as fo:
     json.dump(report, fo)
-
-if args.hack_upload_report_to and args.hack_upload_report_for:
-    subprocess.run(
-        shlex.split(f'/usr/local/bin/zreprt-pgup.py -r {Path(args.out_dir, args.reportfile)} -t {args.hack_upload_report_for} --pg_host {args.hack_upload_report_to}'),
-        cwd='/usr/local/bin'
-    )
 
