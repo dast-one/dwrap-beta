@@ -35,7 +35,9 @@ endif
 
 .PHONY: scramble
 scramble:
-	openssl enc -aes-256-cbc -pbkdf2 -nosalt -pass 'pass:typoscramble'  \
+	openssl enc -aes-256-cbc -md sha1 -nosalt -pass 'pass:typoscramble'  \
 	  -in "${TARGET_NAME}.txz" -out "${TARGET_NAME}.txz.ebin"
+# 	openssl enc -aes-256-cbc -pbkdf2 -nosalt -pass 'pass:typoscramble'  \
+# 	  -in "${TARGET_NAME}.txz" -out "${TARGET_NAME}.txz.ebin"
 	sha256sum "${TARGET_NAME}.txz.ebin" >> "${TARGET_NAME}.sha256"
 	rm "${TARGET_NAME}.txz"
