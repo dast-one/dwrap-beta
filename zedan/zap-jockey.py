@@ -127,9 +127,6 @@ for template_file in [
         print(type(e).__name__, str(e))
         sys.exit(1)
 
-## ZAP output will go there
-Path(args.out_dir, 'out').mkdir(parents=False, exist_ok=True) # TODO: mode?
-
 if not any((args.run_zap_docker, args.run_zap_sh)):
     sys.exit(0)
 
