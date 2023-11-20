@@ -9,9 +9,12 @@ env:  # The environment, mandatory
         {% endfor %}
       # includePaths:   # An optional list of regexes to include
       excludePaths:
+        {{ '        '.join((exclude_paths|to_yaml).splitlines(keepends=True)) }}
+        {#
         {% for excludepattern in excludepaths %}
         - {{ excludepattern }}
         {% endfor %}
+        #}
       # authentication:   # TBA: In time to cover all auth configs
   # vars:       # List of 1 or more variables, can be used in urls and selected other parameters
   parameters:
@@ -62,7 +65,7 @@ jobs:
       # maxAlertsPerRule: 0
       # maxBodySizeInBytesToScan: 0
       # scanFuzzerMessages: false
-      # scanOnlyInScope: false
+      scanOnlyInScope: true
 
   - type: spider
     name: spider
@@ -142,7 +145,9 @@ jobs:
   - type: outputSummary
     name: outputSummary
     parameters:
-      summaryFile: /zap/wrk/zap_out.json
+      {# summaryFile: /zap/wrk/zap_out.json #}
+      {# summaryFile: /zap/wrk/out/{{ job_id }}--zap_out.json #}
+      summaryFile: {{ out_dir }}/{{ zap_reportfile }}.zap_out.json
       format: Long # NONE Long
 
   - type: report
@@ -151,16 +156,18 @@ jobs:
       displayReport: false
       template: traditional-json-plus
       theme: null
-      reportDir: /zap/wrk
+      reportDir: {{ out_dir }}
       reportFile: {{ zap_reportfile }}
 
-  # - type: report
-  #   name: report
-  #   parameters:
-  #     displayReport: false
-  #     template: traditional-html
-  #     theme: null
-  #     reportDir: /zap/wrk/out
-  #     reportFile: {{ zap_reportfile }}
-  #     reportTitle: "Report on job ID {{ job_id }}"
-  #     reportDescription: "Report on job ID {{ job_id }}"
+{#
+  - type: report
+    name: report
+    parameters:
+      displayReport: false
+      template: traditional-html
+      theme: null
+      reportDir: {{ out_dir }}
+      reportFile: {{ zap_reportfile }}
+      reportTitle: "Report on job ID {{ job_id }}"
+      reportDescription: "Report on job ID {{ job_id }}"
+#}
