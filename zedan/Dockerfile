@@ -4,8 +4,7 @@ USER root
 
 RUN pip3 install --no-cache-dir --disable-pip-version-check \
     Jinja2 \
-    jsonschema \
-    docker
+    jsonschema
 
 COPY ./templates-zap /usr/local/share/masc/
 COPY ./zap-jockey.py /usr/local/bin/zap-jockey
