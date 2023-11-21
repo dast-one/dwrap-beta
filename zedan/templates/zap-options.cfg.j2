@@ -6,3 +6,13 @@ script.scripts({{ loop.index0 }}).type=httpsender
 script.scripts({{ loop.index0 }}).enabled=true
 script.scripts({{ loop.index0 }}).file=/zap/wrk/hsendr.py
 {% endfor %}
+{% if proxy is defined %}
+connection.proxyChain.enabled=true
+connection.proxyChain.hostName={{proxy.host}}
+connection.proxyChain.port={{proxy.port}}
+{% if proxy.username is defined %}
+connection.proxyChain.userName={{proxy.username}}
+connection.proxyChain.password={{proxy.password}}
+connection.proxyChain.authEnabled=true
+{% endif %}
+{% endif %}
