@@ -5,6 +5,7 @@ from itertools import groupby
 from pathlib import Path
 from typing import Iterator
 
+from attrs import evolve
 from pydantic.dataclasses import dataclass
 
 from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
@@ -233,7 +234,7 @@ def zreprt_the_result(rlr_cfg, ebc):
     )
 
     datep = re.compile(r'([Dd]ate: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
-    # klmnp = re.compile(r'^(.*?Нетипизированная ошибка.{33}).*$', re.M + re.S)
+    # klmnp = re.compile(r'^(.*?Нетипизированная ошибка.{33}).*$', re.M + re.S) # Manual editing is not a final solution. TODO: Improve this.
     errs_for_summary = list()
 
     for eb in ebc:
@@ -263,7 +264,7 @@ def zreprt_the_result(rlr_cfg, ebc):
         e2 = Err(**asdict(eb.rrz[-1]))
         # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
-        # normalized_res_content = klmnp.sub(r'\1', normalized_res_content)
+        # normalized_res_content = klmnp.sub(r'\1', normalized_res_content) # Manual editing is not a final solution. TODO: Improve this.
         errs_for_summary.append(
             (
                 e2,
@@ -281,6 +282,7 @@ def zreprt_the_result(rlr_cfg, ebc):
     # kf = lambda e: (e[0].res.content, e[0].c, e[1]['checker'])
     kf = lambda e: (e[1]['nrc'], e[0].c, e[1]['checker'])
     errs_for_summary.sort(key=kf)
+    critp = re.compile('INSERT INTO') # Manual editing is not a final solution. TODO: Improve this.
     for (_, response_code, checker), err_grp in groupby(errs_for_summary, key=kf):
         err_grp = list(err_grp)
         samples.append(
@@ -289,25 +291,27 @@ def zreprt_the_result(rlr_cfg, ebc):
                 err_grp[-1][0].res.content,
                 response_code,
                 checker,
+                any(critp.search(e[0].res.content) for e in err_grp), # Severity raise condition
             )
         )
 
     print(f'  {len(errs_for_summary)} Err(s)  ->  {len(samples)} group(s)'
-          f'  with items:  {", ".join(map(str, (len(q) for q, r, c, ch in samples)))}')
+          f'  with items:  {", ".join(map(str, (len(q) for q, _, _, _, _ in samples)))}')
 
-    for qz, r, c, ch in samples:
+    for qz, r, c, ch, raise_condition in samples:
         issue_locations = sorted(set(
             (q.method, q.path[:q.path.find("?") if q.path.find("?") > 0 else None])
             for q in qz
         ))
-        zr.site[0].alerts.append(alert_template.copy(update={
+        zr.site[0].alerts.append(evolve(alert_template, **{
             'alertref': f'{c}-{ch}',
             'alert': f'{c}-{ch}',
             'name': f'{c}-{ch}',  # TODO
             # 'riskcode':  # TODO, eb.risk_value(),
+            'riskcode': 3 if raise_condition else 2,
             'instances': [
                 # First fake instance with request-response.
-                alert_instance_template.copy(update={
+                evolve(alert_instance_template, **{
                     'uri': '(SAMPLE)',
                     # 'method': '__',
                     'request_body': f'{qz[0].query}\n{qz[0].body}\n',
@@ -315,7 +319,7 @@ def zreprt_the_result(rlr_cfg, ebc):
                 }),
             ] + [
                 # List where such issues found.
-                alert_instance_template.copy(update={
+                evolve(alert_instance_template, **{
                     'uri': p,
                     'method': m,
                 }) for (m, p) in issue_locations
@@ -404,16 +408,18 @@ if __name__ == '__main__':
                     print(f'Processing bug_buckets from `{p}:{bbfile.name}`')
 
     (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
+    # print(*dir(zr.site[0].alerts[0]), sep='\n')
+    zr.site[0].alerts.sort(key=lambda a: a.riskcode, reverse=True)
 
     if args.out_report and not args.dry_run:
         with open(args.out_report, 'w') as fo:
-            json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
+            fo.write(zr.json())
 
     if args.summary and not args.dry_run:
         with open(args.summary, 'w') as fo:
-            for qz, r, c, ch in samples:
+            for qz, r, c, ch, raise_condition in samples:
                 fo.write('\n' + '-' * 79 + '\n\n')
-                fo.write(f'Response: {c}\nChecker: {ch}\n\n')
+                fo.write(f'Response: {c}\nChecker: {ch}\nraise_condition: {raise_condition}\n\n')
                 fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
                 fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
                 fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')

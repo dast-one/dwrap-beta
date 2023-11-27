@@ -193,16 +193,16 @@ else:
 
 # Write the summary.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
-    for qz, r, c, ch in samples:
+    for qz, r, c, ch, raise_condition in samples:
         fo.write('\n' + '-' * 79 + '\n\n')
-        fo.write(f'Response: {c}\nChecker: {ch}\n\n')
+        fo.write(f'Response: {c}\nChecker: {ch}\nraise_condition: {raise_condition}\n\n')
         fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
         fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
         fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
 
 # Write the report.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
-    json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
+    fo.write(zr.json())
 
 # Archive some directories.
 for p in (
