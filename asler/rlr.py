@@ -234,6 +234,9 @@ def zreprt_the_result(rlr_cfg, ebc):
     )
 
     datep = re.compile(r'([Dd]ate: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
+    clenp = re.compile(r'^Content-Length:.*$', re.M + re.I)
+    etagp = re.compile(r'^ETag:.*$', re.M + re.I)
+    uuidp = re.compile(r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b', re.I)
     # klmnp = re.compile(r'^(.*?Нетипизированная ошибка.{33}).*$', re.M + re.S) # Manual editing is not a final solution. TODO: Improve this.
     errs_for_summary = list()
 
@@ -264,7 +267,11 @@ def zreprt_the_result(rlr_cfg, ebc):
         e2 = structure(asdict(eb.rrz[-1]), Err) # TODO: Why simply not `e2 = eb.rrz[-1]`?
         # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
+        normalized_res_content = clenp.sub(r'Content-Length: ...', normalized_res_content)
+        normalized_res_content = etagp.sub(r'ETag: ...', normalized_res_content)
+        normalized_res_content = uuidp.sub(r'<UUID>', normalized_res_content)
         # normalized_res_content = klmnp.sub(r'\1', normalized_res_content) # Manual editing is not a final solution. TODO: Improve this.
+        # breakpoint()
         errs_for_summary.append(
             (
                 e2,
