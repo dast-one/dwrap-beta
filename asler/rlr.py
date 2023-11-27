@@ -5,6 +5,7 @@ from itertools import groupby
 from pathlib import Path
 from typing import Iterator
 
+from attrs import evolve
 from pydantic.dataclasses import dataclass
 
 from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
@@ -302,7 +303,7 @@ def zreprt_the_result(rlr_cfg, ebc):
             (q.method, q.path[:q.path.find("?") if q.path.find("?") > 0 else None])
             for q in qz
         ))
-        zr.site[0].alerts.append(alert_template.copy(update={
+        zr.site[0].alerts.append(evolve(alert_template, **{
             'alertref': f'{c}-{ch}',
             'alert': f'{c}-{ch}',
             'name': f'{c}-{ch}',  # TODO
@@ -310,7 +311,7 @@ def zreprt_the_result(rlr_cfg, ebc):
             'riskcode': 3 if raise_condition else 2,
             'instances': [
                 # First fake instance with request-response.
-                alert_instance_template.copy(update={
+                evolve(alert_instance_template, **{
                     'uri': '(SAMPLE)',
                     # 'method': '__',
                     'request_body': f'{qz[0].query}\n{qz[0].body}\n',
@@ -318,7 +319,7 @@ def zreprt_the_result(rlr_cfg, ebc):
                 }),
             ] + [
                 # List where such issues found.
-                alert_instance_template.copy(update={
+                evolve(alert_instance_template, **{
                     'uri': p,
                     'method': m,
                 }) for (m, p) in issue_locations
@@ -412,7 +413,7 @@ if __name__ == '__main__':
 
     if args.out_report and not args.dry_run:
         with open(args.out_report, 'w') as fo:
-            json.dump(zr.dict(), fo, indent=4, ensure_ascii=False)
+            fo.write(zr.json())
 
     if args.summary and not args.dry_run:
         with open(args.summary, 'w') as fo:
