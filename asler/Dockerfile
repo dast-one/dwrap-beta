@@ -20,7 +20,7 @@ EOF
 COPY --from=d1kit . /usr/local/lib/d1kit/
 
 RUN apk add --update --no-cache jq \
-  && pip3 install --disable-pip-version-check --no-cache-dir jsonschema pydantic attrs \
+  && pip3 install --disable-pip-version-check --no-cache-dir attrs cattrs jsonschema \
   && cd /usr/local/lib/d1kit \
   && pip3 install --disable-pip-version-check --no-cache-dir --editable . --config-settings editable_mode=compat
 

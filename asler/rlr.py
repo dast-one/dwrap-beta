@@ -1,17 +1,17 @@
 import re
-from dataclasses import asdict, field
+from attrs import asdict, define, field
+from cattrs import structure
 # from datetime import datetime, timezone
 from itertools import groupby
 from pathlib import Path
 from typing import Iterator
 
 from attrs import evolve
-from pydantic.dataclasses import dataclass
 
 from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
 
 
-@dataclass
+@define
 class RequestData:
     """..."""
     method: str
@@ -20,7 +20,7 @@ class RequestData:
     body: str = field(repr=False)
 
 
-@dataclass
+@define
 class ResponseData:
     """..."""
     code: int
@@ -29,7 +29,7 @@ class ResponseData:
     isFailure: bool | None
     isBug: bool | None
 
-    def __post_init__(self):
+    def __attrs_post_init__(self):
         # Since `code` should be a non-negative integer,
         # we use negative result to indicate an error.
         try:
@@ -40,10 +40,10 @@ class ResponseData:
             self.code = -2
 
 
-@dataclass
+@define
 class Err:
     """..."""
-    c: str
+    c: str # WARN Sometimes 0(int) comes!
     bkt: str
     qry: RequestData
     res: ResponseData
@@ -63,12 +63,12 @@ class Err:
             return '1'
 
 
-@dataclass
+@define
 class ErrorBucket:
     """..."""
     c: str
     bkt: str
-    rrz: list[Err] = field(default_factory=list)
+    rrz: list[Err] = field(factory=list)
     checker: str | None = None
     checker_tag: str | None = None
     checker_data: str | None = None
@@ -163,7 +163,7 @@ def collect_bugbuckets(jfo, bp, archive=None) -> Iterator[ErrorBucket]:
             raise e
         request = eval('str("' + request.replace('"', r'\"') + '")')
         response = eval('str("' + response.replace('"', r'\"') + '")')
-        code = code or 0
+        code = code or '0'
         # print('got', f'::{checker}::{code}::{some_hash}::', 'with sample for', method, path)
         # print()
         yield ErrorBucket(
@@ -261,7 +261,7 @@ def zreprt_the_result(rlr_cfg, ebc):
         # }))
 
         # Normalize for further grouping.
-        e2 = Err(**asdict(eb.rrz[-1]))
+        e2 = structure(asdict(eb.rrz[-1]), Err) # TODO: Why simply not `e2 = eb.rrz[-1]`?
         # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         # normalized_res_content = klmnp.sub(r'\1', normalized_res_content) # Manual editing is not a final solution. TODO: Improve this.
