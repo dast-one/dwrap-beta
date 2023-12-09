@@ -37,6 +37,7 @@ ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan r
 ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
 ap.add_argument('--reportfile', default='rlr-report', help='Override report filename (without extension)')
 ap.add_argument('--skip-compile', action='store_true', default=False)
+ap.add_argument('--hack_tkn_script', action='store_true', default=False)
 ap.add_argument('--max_request_execution_time', type=int, default=6, help='(seconds) (ref: rlr engine settings)')
 ap.add_argument('--token_refresh_interval', type=int, default=86400, help='(seconds) (ref: rlr engine settings)')
 ap.add_argument('--time_budget', type=int, default=4, help='(hours) (ref: rlr engine settings)')
@@ -127,6 +128,9 @@ if cfg['headers']:
             + [f"echo '{h}: {v}'\n" for (h, v) in cfg['headers']]
         )
     tknr.chmod(tknr.stat().st_mode | 0o111)  # Like `chmod +x`.
+
+if cfg['headers'] or args.hack_tkn_script:
+    tknr = Path(args.out_dir, 'rlr_tkn.sh')
     rlr_cfg.update({
         'token_refresh_cmd': tknr.resolve().as_posix(),
         'token_refresh_interval': args.token_refresh_interval,
