@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonschema
+from attrs import evolve
+
+from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
 
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
@@ -69,24 +72,38 @@ subprocess.run([
 ## --------------------------------------------------------------------
 ## -- Zap-format the result
 
-report = {
-    '@version': 'x3',
-    '@generated': datetime.now(timezone.utc).isoformat(),
-    'site': [{
-        '@name': cfg['endpoints'][0],
-        '@host': cfg['endpoints'][0],
-        '@port': '-',
-        '@ssl': '-',
-        'alerts': list(),
-    }]
-}
+report = ZapReport(
+    # version='x3',
+    # generated_ts=datetime.now(timezone.utc).isoformat(),
+    site=[ZapSite(
+        name=cfg['endpoints'][0],
+        host=cfg['endpoints'][0],
+        port='-',
+        ssl='-',
+        alerts=list(),
+    )]
+)
+
+alert_template = ZapAlertInfo(
+    pluginid=-8,
+    riskcode='',
+    confidence=2,
+    instances=list(),
+    alertref='-8',
+    alert='', name='', riskdesc='', description='', solution='',
+    otherinfo='', reference='', cweid='', wascid='', sourceid='',
+)
+
+alert_instance_template = ZapAlertInstance(
+    uri='', method='', param='', attack='', evidence='',
+    request_header='', request_body='', response_header='', response_body='',
+)
+
 
 with open(Path(args.out_dir, args.reportfile).with_suffix('.nuorig')) as fo:
     z = [json.loads(rline) for rline in fo.readlines()]
     for r in z:
-        alert = {
-            'pluginid': '-8',
-            'alertRef': '-8',
+        report.site[0].alerts.append(evolve(alert_template, **{
             'alert': r['info']['name'],
             'name': r['info']['name'],
             'riskcode': {
@@ -97,30 +114,16 @@ with open(Path(args.out_dir, args.reportfile).with_suffix('.nuorig')) as fo:
                 'critical': '3',
                 'unknown': 'x3',
             }.get(r['info']['severity'], 'x3 (WTF?!)'),
-            'confidence': '2',
-            'riskdesc': '',
-            'desc': r['info']['name'],
-            'instances': [{
+            'description': r['info']['name'],
+            'instances': [evolve(alert_instance_template, **{
                 'uri': r['matched-at'],
-                'method': '',
-                'param': '',
-                'attack': '',
-                'evidence': '',
-                'request-header': '',
-                'request-body': r.get('request', ''),
-                'response-header': '',
-                'response-body': r.get('response', ''),
-            }],
+                'request_body': r.get('request', ''),
+                'response_body': r.get('response', ''),
+            }),],
             'count': '1',
-            'solution': '',
             'otherinfo': '\n'.join(r.get('extracted-results', [])),
-            'reference': '\n'.join(r['info']['reference'] or []),
-            'cweid': '',
-            'wascid': '',
-            'sourceid': '',
-        }
-        report['site'][0]['alerts'].append(alert)
+            'reference': '\n'.join(r['info'].get('reference', [])),
+        }))
 
-with open(Path(args.out_dir, args.reportfile), 'w') as fo:
-    json.dump(report, fo)
-
+with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
+    fo.write(report.json())

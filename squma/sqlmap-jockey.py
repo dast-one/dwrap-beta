@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonschema
+from attrs import evolve
 
 from lib.utils.api import *
 from lib.utils.api import _client
@@ -18,6 +19,7 @@ from thirdparty.six.moves import input as _input
 from thirdparty.six.moves import urllib as _urllib
 
 from openapi_sqlmap import oas_load, sqlmap_tasks
+from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
 
 
 class SqlmapApiClient:
@@ -236,17 +238,32 @@ while not (
 time.sleep(7)
 print('Tasks:', sm.list_tasks()['tasks'], sep='\n')
 
-report = {
-    '@version': 'x3',
-    '@generated': datetime.now(timezone.utc).isoformat(),
-    'site': [{
-        '@name': cfg['endpoints'][0],
-        '@host': cfg['endpoints'][0],
-        '@port': '-',
-        '@ssl': '-',
-        'alerts': list(),
-    }]
-}
+report = ZapReport(
+    # version='x3',
+    # generated_ts=datetime.now(timezone.utc).isoformat(),
+    site=[ZapSite(
+        name=cfg['endpoints'][0],
+        host=cfg['endpoints'][0],
+        port='-',
+        ssl='-',
+        alerts=list(),
+    )]
+)
+
+alert_template = ZapAlertInfo(
+    pluginid=-9,
+    riskcode='3',
+    confidence=3,
+    instances=list(),
+    alertref='-9',
+    alert='', name='', riskdesc='', description='SQL Injection possible', solution='',
+    otherinfo='', reference='', cweid='', wascid='', sourceid='',
+)
+
+alert_instance_template = ZapAlertInstance(
+    uri='', method='', param='', attack='', evidence='',
+    request_header='', request_body='', response_header='', response_body='',
+)
 
 print('Result files to parse:', list(Path(args.out_dir, 'jy').glob('*.data.json')), sep='\n')
 
@@ -266,39 +283,23 @@ for f in Path(args.out_dir, 'jy').glob('*.data.json'):
     assert isinstance(c1['value'], list)
     for c1_value in c1['value']:
         c1_value_data = c1_value['data'].popitem()[1]
-        alert = {
-            'pluginid': '-9',
-            'alertRef': '-9',
+        report.site[0].alerts.append(evolve(alert_template, **{
             'alert': c1_value_data['title'],
             'name': c1_value_data['title'],
-            'riskcode': '3',
-            'confidence': '3',
-            'riskdesc': '',
-            'desc': 'SQL Injection possible',
-            'instances': [{
+            # 'description': 'SQL Injection possible',
+            'instances': [evolve(alert_instance_template, **{
                 'uri': c0['value']['url'],
                 'method': c1_value['place'],
                 'param': c1_value['parameter'],
                 'attack': c1_value_data['vector'],
                 'evidence': c1_value_data['payload'],
-                'request-header': '',
-                'request-body': '',
-                'response-header': '',
-                'response-body': '',
-            }],
+            }),],
             'count': '1',
-            'solution': '',
             'otherinfo': '\n'.join(filter(None, (
                 *c1_value['notes'],
                 c1_value_data['comment'],
                 ))),
-            'reference': '',
-            'cweid': '',
-            'wascid': '',
-            'sourceid': '',
-        }
-        report['site'][0]['alerts'].append(alert)
+        }))
 
-with open(Path(args.out_dir, args.reportfile), 'w') as fo:
-    json.dump(report, fo)
-
+with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:
+    fo.write(report.json())

@@ -1,12 +1,11 @@
 import re
-from attrs import asdict, define, field
-from cattrs import structure
 # from datetime import datetime, timezone
 from itertools import groupby
 from pathlib import Path
 from typing import Iterator
 
-from attrs import evolve
+from attrs import asdict, define, evolve, field
+from cattrs import structure
 
 from zreprt import ZapAlertInfo, ZapAlertInstance, ZapReport, ZapSite
 
