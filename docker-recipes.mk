@@ -13,12 +13,17 @@ DOCKER_IMAGE := ${TARGET_NAME}:latest
 .PHONY: express-build
 express-build:
 	@echo "[make]  ---- express-build ----"
-	docker build --build-context d1kit=/opt/d1/src/dyna-misc/d1kit-pkg -t ${DOCKER_IMAGE} .
+	docker build \
+	  ${DKR_BLD_ADDITIONALS} \
+	  -t ${DOCKER_IMAGE} .
 
 .PHONY: full
 full:
 	@echo "[make]  ---- full-build ----"
-	docker build --build-context d1kit=/opt/d1/src/dyna-misc/d1kit-pkg --no-cache ${DKR_BLD_ADDITIONALS} -t ${DOCKER_IMAGE} .
+	docker build \
+	  --no-cache \
+	  ${DKR_BLD_ADDITIONALS} \
+	  -t ${DOCKER_IMAGE} .
 ifdef TAG
 	docker tag ${DOCKER_IMAGE} ${TARGET_NAME}:${TAG}
 endif

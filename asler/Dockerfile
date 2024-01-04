@@ -16,16 +16,20 @@ alias grep='grep --color=auto'
 alias egrep='egrep --color=auto'
 EOF
 
-# Please do not forget about --build-context d1kit=...
-COPY --from=d1kit . /usr/local/lib/d1kit/
+COPY ./requirements.txt /tmp/
 
-RUN apk add --update --no-cache jq \
-  && pip3 install --disable-pip-version-check --no-cache-dir attrs cattrs jsonschema \
-  && cd /usr/local/lib/d1kit \
-  && pip3 install --disable-pip-version-check --no-cache-dir --editable . --config-settings editable_mode=compat
+# Please do not forget about `--build-context ...=...`
+COPY --from=zreprt . /usr/local/lib/zreprt/
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    <<EOF
+    \
+    apk add --update --no-cache curl jq
+    pip3 install --disable-pip-version-check -r /tmp/requirements.txt
+    pip3 install --disable-pip-version-check --editable /usr/local/lib/zreprt
+EOF
 
 COPY ./rlr-jockey.py /usr/local/bin/rlr-jockey
 COPY ./rlr.py /usr/local/bin/
-# ENV PYTHONPATH=${PYTHONPATH}:/usr/local/bin
 
 ENTRYPOINT [ "/usr/local/bin/rlr-jockey" ]
