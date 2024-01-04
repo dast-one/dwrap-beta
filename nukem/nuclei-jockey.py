@@ -64,7 +64,7 @@ subprocess.run([
     , '-fr', '-mr', '3'
     , '-stats', '-sj', '-si', '20'
     , '-u', cfg['endpoints'][0]
-    , '-irr', '-json', '-o', Path(args.out_dir, args.reportfile).with_suffix('.nuorig').as_posix()
+    , '-irr', '-jsonl', '-o', Path(args.out_dir, args.reportfile).with_suffix('.nuorig').as_posix()
     , *shlex.split(''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']))
 ])
 
