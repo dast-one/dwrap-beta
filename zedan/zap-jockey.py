@@ -21,9 +21,12 @@ import sys
 import uuid
 import yaml
 from pathlib import Path
+from urllib.parse import urlparse
 
 import jinja2
 import jsonschema
+
+from zreprt import ZapReport
 
 
 SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProperties": False, "properties": {
@@ -90,7 +93,19 @@ cfg['disable_active_scan'] = args.disable_active_scan
 
 cfg['out_dir'] = Path(args.out_dir).resolve()
 
-cfg['zap_reportfile'] = args.zap_reportfile
+processed_reportfile = Path(args.zap_reportfile)
+zap_raw_reportfile = processed_reportfile.with_stem(f'_{processed_reportfile.stem}')
+# Reportfile in ZAP config should be specified without .json suffix
+cfg['zap_reportfile'] = zap_raw_reportfile
+# The rest code will use "true" reportfile name, i.e. with .json suffix
+processed_reportfile = processed_reportfile.with_suffix(
+    ''.join(processed_reportfile.suffixes + ['.json',]))
+zap_raw_reportfile = zap_raw_reportfile.with_suffix(
+    ''.join(zap_raw_reportfile.suffixes + ['.json',]))
+
+_ep = urlparse(cfg['endpoints'][0])
+zap_site = f'{_ep.scheme}://{_ep.hostname}'
+cfg['zap_site'] = zap_site
 
 # cfg['exclude_alerts'] = args.exclude_alert
 if not cfg.get('exclude_alerts'):
@@ -102,9 +117,10 @@ if not cfg.get('exclude_alerts'):
 
 # A kind of extra safety-lock, when there are no excludes defined
 if not cfg.get('exclude_paths'):
-    hostname_to_scan = re.search(r'(?:\w+?://)?([^:/]+)', cfg['endpoints'][0], re.I).group(1)
+    # hostname_to_scan = re.search(r'(?:\w+?://)?([^:/]+)', cfg['endpoints'][0], re.I).group(1)
     cfg['exclude_paths'] = [
-        f'^(?:(?!https?:..{hostname_to_scan}).*).$',
+        # f'^(?:(?!https?:..{hostname_to_scan}).*).$',
+        f'^(?:(?!{zap_site}).*).$',
         r'.*logout.*',
         r'.*exit',
         r'.*/static/.*',
@@ -122,6 +138,7 @@ jenv = jinja2.Environment(
     trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True
 )
 jenv.filters['to_yaml'] = yaml.dump
+jenv.filters['ep2zapsite'] = lambda url: f'{urlparse(url).scheme}://{urlparse(url).hostname}'
 jenv.globals = cfg
 for template_file in [
         'zap-af.yaml.j2',      # URLs and API spec. ref. to go there
@@ -141,6 +158,31 @@ if args.dry_run:
     print(json.dumps(cfg, indent=4, ensure_ascii=False))
     sys.exit(0)
 
-subprocess.run(
-    shlex.split('./zap.sh -cmd -autorun /zap/wrk/zap-af.yaml -configfile /zap/wrk/zap-options.cfg')
-)
+
+subprocess.run(shlex.split(
+    './zap.sh  -cmd  -autorun /zap/wrk/zap-af.yaml'
+    '  -silent  -host 0.0.0.0'
+    '  -configfile /zap/wrk/zap-options.cfg'
+))
+
+
+zr = ZapReport.from_json_file(Path(args.out_dir, zap_raw_reportfile))
+
+while len(zr.site) > 1:
+    _ = zr.site.pop(0)
+
+for a in zr.site[0].alerts:
+    for i in range(len(a.instances) - 1):
+        a.instances[i].request_header = ''
+        a.instances[i].request_body = ''
+        a.instances[i].response_header = ''
+        a.instances[i].response_body = ''
+
+# Exclude some alerts
+zr.site[0].alerts = list(filter(
+    lambda a: int(a.pluginid) not in (10096, 10027),
+    zr.site[0].alerts
+))
+
+with open(Path(args.out_dir, processed_reportfile), 'w') as fo:
+    fo.write(zr.json_orig())

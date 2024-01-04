@@ -1,11 +1,4 @@
-{% for _ in ['_SINGLE_HARDCODED_HSENDER_FOR_NOW_', ] %}
-script.scripts({{ loop.index0 }}).name=hsendr.py
-script.scripts({{ loop.index0 }}).description=HTTP Sender for Auth.
-script.scripts({{ loop.index0 }}).engine=jython
-script.scripts({{ loop.index0 }}).type=httpsender
-script.scripts({{ loop.index0 }}).enabled=true
-script.scripts({{ loop.index0 }}).file=/zap/wrk/hsendr.py
-{% endfor %}
+
 {% if proxy is defined %}
 connection.proxyChain.enabled=true
 connection.proxyChain.hostName={{proxy.host}}
@@ -16,3 +9,7 @@ connection.proxyChain.password={{proxy.password}}
 connection.proxyChain.authEnabled=true
 {% endif %}
 {% endif %}
+
+api.addrs.addr.name=.*
+api.addrs.addr.regex=true
+api.disablekey=true
