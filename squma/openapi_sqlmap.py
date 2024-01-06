@@ -1,9 +1,9 @@
 """Supplementary module: openapi spec -> sqlmap tasks."""
 
 import json
-import os
 import pathlib
 import re
+
 import yaml
 
 
@@ -12,6 +12,7 @@ class CustomError(Exception):
 
 
 path_param = re.compile(r'\{([^}]+?)\}')
+
 
 def _sample_for_schema(sd, oas):
     """Returns a sample for given schema dict, dereferencing with given oapispec."""
@@ -27,7 +28,7 @@ def _sample_for_schema(sd, oas):
             d = d[k]
         return _sample_for_schema(d, oas)
 
-    if sd.get('type', 'object') == 'object': # Absent 'type' should be treated as 'object'?!
+    if sd.get('type', 'object') == 'object':  # Absent 'type' should be treated as 'object'?!
         return dict((p, _sample_for_schema(s, oas)) for (p, s) in sd.get('properties', dict()).items())
     elif sd['type'] == 'array':
         return list(_sample_for_schema(sd['items'], oas) for _ in range(3))
@@ -39,6 +40,7 @@ def _sample_for_schema(sd, oas):
             'boolean': True,
         }.get(sd['type'], sd['type'] + '(WTF?!)')
     # TODO: Support other types or use full-featured generator.
+
 
 def sqlmap_tasks(oas, additional_qryparams=[]):
     """Create sqlmap tasks from openapi spec.
@@ -74,7 +76,11 @@ def sqlmap_tasks(oas, additional_qryparams=[]):
                     smt['url'] += f'?{qry_params}'
                 # TODO: Support in-header params.
 
-                reqbody_content_item = oas['paths'][u][m].get('requestBody', {'content': {'application/json': {'schema': None}}})['content'].popitem()
+                reqbody_content_item = oas['paths'][u][m].get(
+                    'requestBody',
+                    {'content': {'application/json': {'schema': None}}}
+                )['content'].popitem()
+
                 if post_data := _sample_for_schema(
                         reqbody_content_item[1]['schema'],
                         oas
@@ -98,6 +104,7 @@ def _as_yaml(fp):
         else:
             return oas
 
+
 def _as_json(fp):
     with open(fp) as fo:
         try:
@@ -106,6 +113,7 @@ def _as_json(fp):
             return None
         else:
             return oas
+
 
 def oas_load(file_path):
     fp = pathlib.Path(file_path).expanduser()
@@ -127,4 +135,3 @@ if __name__ == '__main__':
     #         oas = json.load(fo)
     #     # for u in oas['paths']:
     #     #   ...
-

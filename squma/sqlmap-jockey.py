@@ -6,7 +6,6 @@ import shlex
 import subprocess
 import sys
 import threading
-from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonschema
@@ -72,9 +71,10 @@ class SqlmapApiClient:
             taskid = None
             raise
 
-        del cmdLineOptions['stdinPipe'] # A hack against callable_iterator in different docker container environments
-                                        # Maybe closed with that fix, if it appear in Kali distro (which we use as a base):
-                                        # https://github.com/sqlmapproject/sqlmap/commit/5eaf1d2d27c4abda1464a3fa23275ae0716d1b55
+        # A hack against callable_iterator appearing under some docker environment.
+        #   Maybe closed with that fix, if it appear in Kali distro (which we use as a base):
+        #   https://github.com/sqlmapproject/sqlmap/commit/5eaf1d2d27c4abda1464a3fa23275ae0716d1b55
+        del cmdLineOptions['stdinPipe']
 
         for key in list(cmdLineOptions):
             if cmdLineOptions[key] is None:
@@ -130,6 +130,7 @@ def dump_reports(scan_result):
     with open(Path(args.out_dir, 'jy', f"{scan_result['taskid']}.config.json"), 'w') as fo:
         json.dump(scan_result['config'], fo)
 
+
 def thread_worker(sqlmap_task):
     with pool_sema:
         logger.debug(sqlmap_task)
@@ -155,10 +156,12 @@ SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProp
 }}
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
-ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
+ap.add_argument('-i', '--scan-request-from-file', default=None,
+    help='Get scan request from JSON-file instead of STDIN.')
+ap.add_argument('-o', '--out-dir', default='.')  # default='/wrk/out'
 ap.add_argument('--reportfile', default='sq-report', help='Override report filename (without extension)')
-ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true', help='Do not actually run scan (useful for debugging)')
+ap.add_argument('-n', '--dry-run', '--dry_run', action='store_true',
+    help='Do not actually run scan (useful for debugging)')
 ap.add_argument('-v', '--log-debug', '--log_debug', action='store_true', help='Be verbose (setLevel logging.DEBUG)')
 ap.add_argument('-t', '--threads', type=int, default=3, help='max_threads for threading.BoundedSemaphore()')
 args = ap.parse_args()
@@ -167,7 +170,7 @@ if args.log_debug:
     logger.setLevel(logging.DEBUG)
 
 if args.scan_request_from_file is None:
-    ## Parse STDIN data
+    # Parse STDIN data
     try:
         cfg = json.load(sys.stdin)
         jsonschema.validate(cfg, schema=SCAN_REQUEST_SCH)
@@ -183,7 +186,7 @@ else:
         print(type(e).__name__, str(e))
         sys.exit(1)
 
-## Output (reports) will go there
+# Output (reports) will go there
 Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
 if not args.dry_run:
@@ -206,7 +209,7 @@ if (cfg.get('oas') or dict()).get('file'):
                 f"new -u {u} -X {smt['method']}"
                 # + (f" --output-dir={Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
                 + ' -H "User-Agent:masc-fu-squma"'
-                + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']) # TODO: maybe, ...replace("'", r"\'") ?
+                + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers'])  # TODO: maybe, ...replace("'", r"\'") ?
                 + (f" --data '{smt['data']}'" if smt.get('data') else '')
                 + ' --random-agent --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
             )
@@ -218,21 +221,21 @@ else:
         f"new -u {cfg['endpoints'][0]}"
         + (f" --output-dir={Path(args.out_dir, 'sm').as_posix()}" if args.log_debug else '')
         + ' -H "User-Agent:masc-fu-squma"'
-        + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']) # TODO: maybe, ...replace("'", r"\'") ?
-        + ' --crawl-exclude="logout"' # WARN: exclude-paths regex hardcoded
+        + ''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers'])  # TODO: maybe, ...replace("'", r"\'") ?
+        + ' --crawl-exclude="logout"'  # WARN: exclude-paths regex hardcoded
         + ' --crawl=2 --forms --level=2 --risk=3 --skip="Host,Referer,User-Agent" --ignore-code=*',
     )
 
 if args.dry_run:
     sys.exit(0)
 
-## --------------------------------------------------------------------
-## -- Combine all the reports and zap-format the result
+# --------------------------------------------------------------------
+# -- Combine all the reports and zap-format the result
 
 while not (
     all(task_status == 'terminated' for task_status in sm.list_tasks()['tasks'].values())
     and sm.list_tasks()['tasks_num'] > 0
-    ):
+):
     time.sleep(7)
 
 time.sleep(7)
@@ -298,7 +301,7 @@ for f in Path(args.out_dir, 'jy').glob('*.data.json'):
             'otherinfo': '\n'.join(filter(None, (
                 *c1_value['notes'],
                 c1_value_data['comment'],
-                ))),
+            ))),
         }))
 
 with open(Path(args.out_dir, args.reportfile).with_suffix('.json'), 'w') as fo:

@@ -33,8 +33,9 @@ SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProp
 }}
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
-ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
+ap.add_argument('-i', '--scan-request-from-file', default=None,
+    help='Get scan request from JSON-file instead of STDIN.')
+ap.add_argument('-o', '--out-dir', default='.')  # default='/wrk/out'
 ap.add_argument('--reportfile', default='rlr-report', help='Override report filename (without extension)')
 ap.add_argument('--skip-compile', action='store_true', default=False)
 ap.add_argument('--hack_tkn_script', action='store_true', default=False)
@@ -92,9 +93,9 @@ Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 # Compile the spec, also prepare engine_settings.
 if not args.skip_compile:
     subprocess.run([
-        '/RESTler/restler/Restler'
-        , 'compile'
-        , '--api_spec', cfg['oas']['file']
+        '/RESTler/restler/Restler',
+        'compile',
+        '--api_spec', cfg['oas']['file'],
     ], cwd=args.out_dir)
 
 # Update the config (engine_settings.json).
@@ -154,29 +155,29 @@ if args.dry_run or args.aggressiveness == 'dry':
 
 if not args.dry_run and args.aggressiveness in ['test', 'lite', 'full']:
     subprocess.run([
-        '/RESTler/restler/Restler'
-        , 'test'
-        , '--grammar_file', 'Compile/grammar.py'
-        , '--dictionary_file', 'Compile/dict.json'
-        , '--settings', 'Compile/engine_settings.json'
+        '/RESTler/restler/Restler',
+        'test',
+        '--grammar_file', 'Compile/grammar.py',
+        '--dictionary_file', 'Compile/dict.json',
+        '--settings', 'Compile/engine_settings.json',
     ], cwd=args.out_dir)
 
 if not args.dry_run and args.aggressiveness == 'lite':
     subprocess.run([
-        '/RESTler/restler/Restler'
-        , 'fuzz-lean'
-        , '--grammar_file', 'Compile/grammar.py'
-        , '--dictionary_file', 'Compile/dict.json'
-        , '--settings', 'Compile/engine_settings.json'
+        '/RESTler/restler/Restler',
+        'fuzz-lean',
+        '--grammar_file', 'Compile/grammar.py',
+        '--dictionary_file', 'Compile/dict.json',
+        '--settings', 'Compile/engine_settings.json',
     ], cwd=args.out_dir)
 
 if not args.dry_run and args.aggressiveness == 'full':
     subprocess.run([
-        '/RESTler/restler/Restler'
-        , 'fuzz'
-        , '--grammar_file', 'Compile/grammar.py'
-        , '--dictionary_file', 'Compile/dict.json'
-        , '--settings', 'Compile/engine_settings.json'
+        '/RESTler/restler/Restler',
+        'fuzz',
+        '--grammar_file', 'Compile/grammar.py',
+        '--dictionary_file', 'Compile/dict.json',
+        '--settings', 'Compile/engine_settings.json',
     ], cwd=args.out_dir)
 
 rlr_jobdir = {
@@ -200,7 +201,8 @@ with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:
     for qz, r, c, ch, raise_condition in samples:
         fo.write('\n' + '-' * 79 + '\n\n')
         fo.write(f'Response: {c}\nChecker: {ch}\nraise_condition: {raise_condition}\n\n')
-        fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
+        fo.writelines(sorted(set(
+            f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
         fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
         fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')
 

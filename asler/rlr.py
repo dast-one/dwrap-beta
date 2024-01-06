@@ -1,5 +1,4 @@
 import re
-# from datetime import datetime, timezone
 from itertools import groupby
 from pathlib import Path
 from typing import Iterator
@@ -42,7 +41,7 @@ class ResponseData:
 @define
 class Err:
     """..."""
-    c: str # WARN Sometimes 0(int) comes!
+    c: str  # WARN Sometimes 0(int) comes!
     bkt: str
     qry: RequestData
     res: ResponseData
@@ -208,9 +207,9 @@ def zreprt_the_result(rlr_cfg, ebc):
         # generated_ts=datetime.now(timezone.utc).isoformat(),
         site=[ZapSite(
             name=f"http{'' if rlr_cfg['no_ssl'] else 's'}://"
-                     f"{rlr_cfg['host'] or '...'}"
-                     f"{'' if (whether_default_port_configured) else ':' + str(rlr_cfg['target_port'])}"
-                     f"/{rlr_cfg['basepath'].strip('/')}",
+                 f"{rlr_cfg['host'] or '...'}"
+                 f"{'' if (whether_default_port_configured) else ':' + str(rlr_cfg['target_port'])}"
+                 f"/{rlr_cfg['basepath'].strip('/')}",
             host=rlr_cfg['host'],
             port=str(rlr_cfg['target_port']),
             ssl=str(not rlr_cfg['no_ssl']),
@@ -264,7 +263,7 @@ def zreprt_the_result(rlr_cfg, ebc):
         # }))
 
         # Normalize for further grouping.
-        e2 = structure(asdict(eb.rrz[-1]), Err) # TODO: Why simply not `e2 = eb.rrz[-1]`?
+        e2 = structure(asdict(eb.rrz[-1]), Err)  # TODO: Why simply not `e2 = eb.rrz[-1]`?
         # e2.res.content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = datep.sub(r'_date_HH:MM:SS\3', e2.res.content)
         normalized_res_content = uuidp.sub(r'<UUID>', normalized_res_content)
@@ -289,7 +288,7 @@ def zreprt_the_result(rlr_cfg, ebc):
     # kf = lambda e: (e[0].res.content, e[0].c, e[1]['checker'])
     kf = lambda e: (e[1]['nrc'], e[0].c, e[1]['checker'])
     errs_for_summary.sort(key=kf)
-    critp = re.compile('INSERT INTO') # Manual editing is not a final solution. TODO: Improve this.
+    critp = re.compile('INSERT INTO')  # Manual editing is not a final solution. TODO: Improve this.
     for (_, response_code, checker), err_grp in groupby(errs_for_summary, key=kf):
         err_grp = list(err_grp)
         samples.append(
@@ -298,7 +297,7 @@ def zreprt_the_result(rlr_cfg, ebc):
                 err_grp[-1][0].res.content,
                 response_code,
                 checker,
-                any(critp.search(e[0].res.content) for e in err_grp), # Severity raise condition
+                any(critp.search(e[0].res.content) for e in err_grp),  # Severity raise condition
             )
         )
 
@@ -340,14 +339,13 @@ def zreprt_the_result(rlr_cfg, ebc):
 if __name__ == '__main__':
     import argparse
     import json
-    import sys
     import tarfile
 
     ap = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     ap.add_argument('rlr_wrk', default=['.',], nargs='*',
         help='''Restler wrk-dir as base path for its data to read.
-            Set multiple times to gather data from several directories.
-            Defaults to the current working dir.''')
+             Set multiple times to gather data from several directories.
+             Defaults to the current working dir.''')
     ap.add_argument('-m', '--rlr-mode', default='FuzzLean',
         choices=['Test', 'FuzzLean', 'Fuzz'],
         help='''Restler job sub-directory, named afer scan mode used.
@@ -427,6 +425,7 @@ if __name__ == '__main__':
             for qz, r, c, ch, raise_condition in samples:
                 fo.write('\n' + '-' * 79 + '\n\n')
                 fo.write(f'Response: {c}\nChecker: {ch}\nraise_condition: {raise_condition}\n\n')
-                fo.writelines(sorted(set(f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
+                fo.writelines(sorted(set(
+                    f'{q.method} {q.path[:q.path.find("?") if q.path.find("?") > 0 else None]}\n' for q in qz)))
                 fo.write(f'\n\n{qz[0].query}\n{qz[0].body}\n')
                 fo.write(f'\nSAMPLE RESPONSE:\n\n{r}\n')

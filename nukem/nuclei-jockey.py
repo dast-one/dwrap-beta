@@ -5,7 +5,6 @@ import json
 import shlex
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonschema
@@ -32,8 +31,9 @@ SCAN_REQUEST_SCH = {"type": "object", "required": ["endpoints"], "additionalProp
 }}
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-i', '--scan-request-from-file', default=None, help='Get scan request from JSON-file instead of STDIN.')
-ap.add_argument('-o', '--out-dir', default='.') # default='/wrk/out'
+ap.add_argument('-i', '--scan-request-from-file', default=None,
+    help='Get scan request from JSON-file instead of STDIN.')
+ap.add_argument('-o', '--out-dir', default='.')  # default='/wrk/out'
 ap.add_argument('--reportfile', default='nu-report', help='Override report filename (without extension)')
 args = ap.parse_args()
 
@@ -59,18 +59,18 @@ Path(args.out_dir).mkdir(parents=False, exist_ok=True)
 
 
 subprocess.run([
-    'nuclei'
-    , '-duc', '-ni'
-    , '-fr', '-mr', '3'
-    , '-stats', '-sj', '-si', '20'
-    , '-u', cfg['endpoints'][0]
-    , '-irr', '-jsonl', '-o', Path(args.out_dir, args.reportfile).with_suffix('.nuorig').as_posix()
-    , *shlex.split(''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers']))
+    'nuclei',
+    '-duc', '-ni',
+    '-fr', '-mr', '3',
+    '-stats', '-sj', '-si', '20',
+    '-u', cfg['endpoints'][0],
+    '-irr', '-jsonl', '-o', Path(args.out_dir, args.reportfile).with_suffix('.nuorig').as_posix(),
+    *shlex.split(''.join(f" -H '{h}:{v}'" for (h, v) in cfg['headers'])),
 ])
 
 
-## --------------------------------------------------------------------
-## -- Zap-format the result
+# --------------------------------------------------------------------
+# -- Zap-format the result
 
 report = ZapReport(
     # version='x3',
