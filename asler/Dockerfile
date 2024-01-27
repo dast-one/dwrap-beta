@@ -7,29 +7,18 @@ FROM restler:v9.2.3
 # https://github.com/microsoft/restler-fuzzer/blob/main/docs/user-guide/Telemetry.md
 ENV RESTLER_TELEMETRY_OPTOUT=1
 
-ENV PYTHONUNBUFFERED=1 ENV=/etc/profile
-
-COPY <<EOF /etc/profile.d/aliases.sh
-alias ls='ls --color=auto'
-alias ll='ls -l'
-alias grep='grep --color=auto'
-alias egrep='egrep --color=auto'
-EOF
-
-COPY ./requirements.txt /tmp/
-
-# Please do not forget about `--build-context ...=...`
-COPY --from=zreprt . /usr/local/lib/zreprt/
-
 RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     <<EOF
     \
     apk add --update --no-cache curl jq
     pip3 install --disable-pip-version-check -r /tmp/requirements.txt
-    pip3 install --disable-pip-version-check --editable /usr/local/lib/zreprt
 EOF
 
-COPY ./rlr-jockey.py /usr/local/bin/rlr-jockey
 COPY ./rlr.py /usr/local/bin/
-
+COPY --chmod=0755 ./rlr-jockey.py /usr/local/bin/rlr-jockey
 ENTRYPOINT [ "/usr/local/bin/rlr-jockey" ]
+
+COPY --from=common aliases.sh /etc/profile.d/
+
+ENV PYTHONUNBUFFERED=1 ENV=/etc/profile

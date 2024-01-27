@@ -1,3 +1,0 @@
-TARGET_NAME := kaplus
-
-include ../docker-recipes.mk

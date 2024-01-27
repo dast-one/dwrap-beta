@@ -1,4 +1,4 @@
-TARGET_NAME := dast.squma
+TARGET_NAME := dast.mapi
 
 DKR_BLD_ADDITIONALS := --pull \
 	--build-context common=../_common

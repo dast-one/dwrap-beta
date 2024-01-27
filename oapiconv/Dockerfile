@@ -1,6 +1,6 @@
 FROM openapitools/openapi-generator-cli
 
-COPY oapiconv-jockey /usr/local/bin/
+COPY --chmod=0755 oapiconv-jockey /usr/local/bin/
 
 ENV PYTHONUNBUFFERED=1
 

@@ -4,25 +4,21 @@
 
 FROM projectdiscovery/nuclei:latest
 
-COPY ./requirements.txt /tmp/
-
-# Please do not forget about `--build-context ...=...`
-COPY --from=zreprt . /usr/local/lib/zreprt/
-
 RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     <<EOF
     \
     apk add --update --no-cache python3
     ln -sf python3 /usr/bin/python
     python3 -m ensurepip
     pip3 install --disable-pip-version-check -r /tmp/requirements.txt
-    pip3 install --disable-pip-version-check --editable /usr/local/lib/zreprt
 EOF
 
-COPY ./nuclei-jockey.py /usr/local/bin/nuclei-jockey
+COPY --chmod=0755 ./nuclei-jockey.py /usr/local/bin/nuclei-jockey
+ENTRYPOINT [ "/usr/local/bin/nuclei-jockey" ]
 
-ENV PYTHONUNBUFFERED=1
+COPY --from=common aliases.sh /etc/profile.d/
+
+ENV PYTHONUNBUFFERED=1 ENV=/etc/profile
 
 RUN nuclei -update-templates
-
-ENTRYPOINT [ "/usr/local/bin/nuclei-jockey" ]
