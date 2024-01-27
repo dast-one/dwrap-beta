@@ -46,6 +46,7 @@ action_grp = ap.add_mutually_exclusive_group(required=False)
 action_grp.add_argument('-n', '--dry-run', action='store_true',
     help='Do not actually run scan (useful for debugging)')
 action_grp.add_argument('-a', '--aggressiveness', '--action',
+    type=str.lower,
     default='lite', choices=['dry', 'test', 'lite', 'full'],
     help='Scan aggressiveness. "Lite" run by default.')
 
