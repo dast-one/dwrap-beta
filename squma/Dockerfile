@@ -21,7 +21,7 @@ EOF
 # ---------------------------------------------------------------------
 # -- Main stage
 
-FROM python:3-slim
+FROM python:3.11-slim
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/var/cache/apt \
