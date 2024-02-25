@@ -178,11 +178,5 @@ for a in zr.site[0].alerts:
         a.instances[i].response_header = ''
         a.instances[i].response_body = ''
 
-# Exclude some alerts
-zr.site[0].alerts = list(filter(
-    lambda a: int(a.pluginid) not in (10096, 10027),
-    zr.site[0].alerts
-))
-
 with open(Path(args.out_dir, processed_reportfile), 'w') as fo:
     fo.write(zr.json_orig())
