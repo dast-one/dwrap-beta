@@ -233,10 +233,15 @@ def zreprt_the_result(rlr_cfg, ebc):
 
     datep = re.compile(r'([Dd]ate: .*? )(\d\d:\d\d:\d\d)( [A-Z]{3}\b)|(\b202\d-\d\d-\d\d[T ]?)(\d\d:\d\d:\d\d(?:\.\d+)?)(.\d\d:\d\d\b)')
     uuidp = re.compile(r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b', re.I)
-    hdrsp = re.compile(r'^(Content-Length|ETag|request-id):.*$', re.M + re.I)
+    hdrsp = re.compile(r'^(Content-Length|ETag|request-id|trace-id|set-cookie|date):.*$', re.M + re.I)
     ## Such manual editing is not a final solution. TODO: Improve this.
     # klmnp = re.compile(r'^(.*?Нетипизированная ошибка.{33}).*$', re.M + re.S)
     # klmnp = re.compile(r'^(<!DOCTYPE HTML).*</body></html>', re.M + re.S)
+    klmnp = re.compile(r'^\s*\w{1,4}\s*$', re.M)
+    klmnr = re.compile(r'(timestamp|segmentId|date|error_id)":"?[\d\w.:+-]+"?', re.M + re.I)
+    klmnq = re.compile(r'(cannot unmarshal \w+ into Go struct|не удалось преобразовать json в структуру|recovered from panic: runtime error|","path":").*', re.M + re.S)
+    # klmnq = re.compile(r'"code":"500".*,"timestamp":"_date_HH:MM:SS"', re.M + re.S)
+    # klmnq = re.compile(r'at ((?!sql).+?) in .+?:line \d+', re.M + re.S + re.I)
     errs_for_summary = list()
 
     for eb in ebc:
@@ -270,6 +275,11 @@ def zreprt_the_result(rlr_cfg, ebc):
         normalized_res_content = hdrsp.sub(r'\1: ...', normalized_res_content)
         ## Such manual editing is not a final solution. TODO: Improve this.
         # normalized_res_content = klmnp.sub(r'\1', normalized_res_content)
+        normalized_res_content = klmnp.sub(r'...', normalized_res_content)
+        normalized_res_content = klmnq.sub(r'...', normalized_res_content)
+        normalized_res_content = klmnr.sub(r'...', normalized_res_content)
+        # if 'is not a member of type' in normalized_res_content:
+        #     breakpoint()
         # breakpoint()
         errs_for_summary.append(
             (
@@ -288,7 +298,7 @@ def zreprt_the_result(rlr_cfg, ebc):
     # kf = lambda e: (e[0].res.content, e[0].c, e[1]['checker'])
     kf = lambda e: (e[1]['nrc'], e[0].c, e[1]['checker'])
     errs_for_summary.sort(key=kf)
-    critp = re.compile('INSERT INTO')  # Manual editing is not a final solution. TODO: Improve this.
+    critp = re.compile(r'INSERT INTO|sql|\.py|exec|persistence', re.I)  # Manual editing is not a final solution. TODO: Improve this.
     for (_, response_code, checker), err_grp in groupby(errs_for_summary, key=kf):
         err_grp = list(err_grp)
         samples.append(
