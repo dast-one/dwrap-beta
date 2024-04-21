@@ -423,7 +423,6 @@ if __name__ == '__main__':
                     print(f'Processing bug_buckets from `{p}:{bbfile.name}`')
 
     (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
-    # print(*dir(zr.site[0].alerts[0]), sep='\n')
     zr.site[0].alerts.sort(key=lambda a: a.riskcode, reverse=True)
 
     if args.out_report and not args.dry_run:

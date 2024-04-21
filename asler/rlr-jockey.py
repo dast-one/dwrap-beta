@@ -196,6 +196,7 @@ else:
     sys.exit(f'No Restler output data found (`{p}`).')
 
 (samples, zr) = zreprt_the_result(rlr_cfg, ebc)
+zr.site[0].alerts.sort(key=lambda a: a.riskcode, reverse=True)
 
 # Write the summary.
 with open(Path(args.out_dir, args.reportfile).with_suffix('.txt'), 'w') as fo:

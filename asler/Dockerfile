@@ -2,7 +2,7 @@
 ##  gonna using heredoc facility, additional build context
 ##  build with DOCKER_BUILDKIT=1
 
-FROM restler:v9.2.3
+FROM restler:v9.2.4
 
 # https://github.com/microsoft/restler-fuzzer/blob/main/docs/user-guide/Telemetry.md
 ENV RESTLER_TELEMETRY_OPTOUT=1
