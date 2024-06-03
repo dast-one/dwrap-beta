@@ -13,7 +13,6 @@ OUT:
 """
 
 import argparse
-import ipaddress
 import json
 import shlex
 import subprocess
@@ -104,19 +103,9 @@ processed_reportfile = processed_reportfile.with_suffix(
 zap_raw_reportfile = zap_raw_reportfile.with_suffix(
     ''.join(zap_raw_reportfile.suffixes + ['.json',]))
 
-
-def is_ipaddr(s):
-    try:
-        _ = ipaddress.ip_address(s)
-    except ValueError:
-        return False
-    else:
-        return True
-
 _ep = urlparse(cfg['endpoints'][0])
-zap_site = f'{_ep.scheme}://{_ep.hostname}' if not is_ipaddr(_ep.hostname) else f'//{_ep.hostname}'
+zap_site = f'{_ep.scheme}://{_ep.hostname}'
 cfg['zap_site'] = zap_site
-
 
 # cfg['exclude_alerts'] = args.exclude_alert
 if not cfg.get('exclude_alerts'):
