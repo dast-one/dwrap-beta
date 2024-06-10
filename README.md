@@ -1,3 +1,16 @@
+This is a collection of wrappers for some tools prepared for DAST automation.
+"Jockeys" are scripts that prepare configs and gather output.
+
+
+## License
+
+Where not stated otherwise, this work is licensed under MIT terms,
+according to the root-level LICENSE file. LICENSE file(s) located
+in subdirectories override root-level one:
+
+- squma is a toolset that executes sqlmap and parses the results,
+so that derivative work is under sqlmap-GPL terms.
+
 
 ## Docker-images Building Environment
 
